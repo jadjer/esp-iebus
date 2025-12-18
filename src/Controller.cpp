@@ -265,7 +265,17 @@ auto Controller::writeMessage(Message const &message) const -> bool {
   return true;
 }
 
-auto Controller::checkParity(Data const data, Size const size, Bit const parity) -> bool { return calculateParity(data, size) == parity; }
+auto Controller::checkParity(Data const data, Size const size, Bit const parity) -> bool {
+  auto const calculatedParity = calculateParity(data, size);
+
+  auto const isValid = calculatedParity == parity;
+  if (not isValid) {
+    ESP_LOGE(TAG, "Parity error (%d != %d)", calculatedParity, parity);
+    return false;
+  }
+
+  return true;
+}
 
 auto Controller::calculateParity(Data const data, Size const size) -> Bit {
   Bit parity = 0;
