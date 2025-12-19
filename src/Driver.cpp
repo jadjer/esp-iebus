@@ -84,11 +84,17 @@ Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(
   gpio_config(&enableConfiguration);
 }
 
-auto Driver::isEnabled() const -> bool { return m_isEnabled; }
+auto Driver::isEnabled() const -> bool {
+  return m_isEnabled;
+}
 
-auto Driver::isBusHigh() const -> bool { return gpio_get_level(static_cast<gpio_num_t>(m_rxPin)); }
+auto Driver::isBusHigh() const -> bool {
+  return gpio_get_level(static_cast<gpio_num_t>(m_rxPin));
+}
 
-auto Driver::isBusLow() const -> bool { return not isBusHigh(); }
+auto Driver::isBusLow() const -> bool {
+  return not isBusHigh();
+}
 
 auto Driver::isBusFree() const -> bool {
   if (isBusHigh()) {

@@ -38,13 +38,20 @@ auto constexpr DATA_BIT_SIZE = 8;
 
 } // namespace
 
-Controller::Controller(Driver::Pin const rx, Driver::Pin const tx, Driver::Pin const enable, Address const address) noexcept : m_address(address), m_driver(rx, tx, enable) {}
+Controller::Controller(Driver::Pin const rx, Driver::Pin const tx, Driver::Pin const enable, Address const address) noexcept : m_address(address), m_driver(rx, tx, enable) {
+}
 
-auto Controller::enable() -> void { m_driver.enable(); }
+auto Controller::enable() -> void {
+  m_driver.enable();
+}
 
-auto Controller::disable() -> void { m_driver.disable(); }
+auto Controller::disable() -> void {
+  m_driver.disable();
+}
 
-auto Controller::isEnabled() const -> bool { return m_driver.isEnabled(); }
+auto Controller::isEnabled() const -> bool {
+  return m_driver.isEnabled();
+}
 
 auto Controller::readMessage() const -> std::optional<Message> {
   if (not isEnabled()) {
@@ -185,7 +192,7 @@ auto Controller::readMessage() const -> std::optional<Message> {
   return message;
 }
 
-auto Controller::writeMessage(Message const &message) const -> bool {
+auto Controller::writeMessage(Message const& message) const -> bool {
   if (not isEnabled()) {
     ESP_LOGE(TAG, "Controller is disabled");
     return false;

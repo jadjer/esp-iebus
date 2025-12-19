@@ -31,9 +31,9 @@ auto delayUs(Time const delay) -> void {
 
   bool enable = true;
   while (enable) {
-    auto const currentTime    = getTimeUs();
+    auto const currentTime = getTimeUs();
     auto const differenceTime = currentTime - startTime;
-    auto const isTimeOut      = differenceTime >= delay;
+    auto const isTimeOut = differenceTime >= delay;
 
     if (isTimeOut) {
       enable = false;

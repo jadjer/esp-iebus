@@ -32,60 +32,60 @@ namespace iebus {
 class Controller {
 
 public:
-    Controller(Driver::Pin rx, Driver::Pin tx, Driver::Pin enable, Address address) noexcept;
+  Controller(Driver::Pin rx, Driver::Pin tx, Driver::Pin enable, Address address) noexcept;
 
 public:
-    /**
-     * Enable IEBus driver
-     */
-    auto enable() -> void;
-    /**
-     * Enable IEBus driver
-     */
-    auto disable() -> void;
+  /**
+   * Enable IEBus driver
+   */
+  auto enable() -> void;
+  /**
+   * Enable IEBus driver
+   */
+  auto disable() -> void;
 
 public:
-    /**
-     * Check if IEBus controller enabled
-     * @return bool
-     */
-    [[nodiscard]] auto isEnabled() const -> bool;
+  /**
+   * Check if IEBus controller enabled
+   * @return bool
+   */
+  [[nodiscard]] auto isEnabled() const -> bool;
 
 public:
-    /**
-     * Read the message from IEBus
-     * @return Optional message
-     */
-    [[nodiscard]] auto readMessage() const -> std::optional<Message>;
-    /**
-     * Write a message to IEBus
-     * @param message Message
-     * @return bool
-     */
-    [[nodiscard]] auto writeMessage(Message const& message) const -> bool;
+  /**
+   * Read the message from IEBus
+   * @return Optional message
+   */
+  [[nodiscard]] auto readMessage() const -> std::optional<Message>;
+  /**
+   * Write a message to IEBus
+   * @param message Message
+   * @return bool
+   */
+  [[nodiscard]] auto writeMessage(Message const& message) const -> bool;
 
 private:
-    /**
-     * Check parity for calculated parity
-     * @param data Data for check
-     * @param size Data size
-     * @param parity Etalon parity
-     * @return Comparison result
-     */
-    static auto checkParity(Data data, Size size, Bit parity) -> bool;
-    /**
-     * Calculate parity for calculated parity
-     * @param data Data for calculate
-     * @param size Data size
-     * @return Parity bit
-     */
-    static auto calculateParity(Data data, Size size) -> Bit;
+  /**
+   * Check parity for calculated parity
+   * @param data Data for check
+   * @param size Data size
+   * @param parity Etalon parity
+   * @return Comparison result
+   */
+  static auto checkParity(Data data, Size size, Bit parity) -> bool;
+  /**
+   * Calculate parity for calculated parity
+   * @param data Data for calculate
+   * @param size Data size
+   * @return Parity bit
+   */
+  static auto calculateParity(Data data, Size size) -> Bit;
 
 private:
-    Address const m_address;
+  Address const m_address;
 
 private:
-    Driver m_driver;
+  Driver m_driver;
 };
 
 } // namespace iebus
