@@ -24,7 +24,7 @@ namespace iebus {
 
 using Time = std::int64_t;
 
-auto getTimeUs() -> Time;
-auto delayUs(Time delay) -> void;
+auto getTimeUS() -> Time;
+auto delayUS(Time delay) -> void;
 
 } // namespace iebus

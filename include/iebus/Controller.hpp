@@ -72,14 +72,14 @@ private:
    * @param parity Etalon parity
    * @return Comparison result
    */
-  static auto checkParity(Data data, Size size, Bit parity) -> bool;
+  static auto checkParity(Driver::Data data, Size size, Bit parity) -> bool;
   /**
    * Calculate parity for calculated parity
    * @param data Data for calculate
    * @param size Data size
    * @return Parity bit
    */
-  static auto calculateParity(Data data, Size size) -> Bit;
+  static auto calculateParity(Driver::Data data, Size size) -> Bit;
 
 private:
   Address const m_address;

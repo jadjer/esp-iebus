@@ -21,6 +21,8 @@
 #include <driver/gpio.h>
 #include <esp_log.h>
 #include <esp_timer.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "common.hpp"
 
@@ -28,11 +30,7 @@ namespace iebus {
 
 namespace {
 
-using Result = esp_err_t;
-
 auto constexpr TAG = "IEBusDriver";
-auto constexpr MICROSECONDS_PER_SECOND = 1000000;
-auto constexpr WATCHDOG_TIMER_RESET_MICROSECONDS = 3 * MICROSECONDS_PER_SECOND;
 
 auto constexpr START_BIT_TOTAL_US = 190;
 auto constexpr START_BIT_HIGH_US = 171;
@@ -105,10 +103,10 @@ auto Driver::isBusFree() const -> bool {
     return false;
   }
 
-  auto const startTime = getTimeUs();
+  auto const startTime = getTimeUS();
 
   while (isBusLow()) {
-    auto const currentTime = getTimeUs();
+    auto const currentTime = getTimeUS();
     auto const timeDifference = currentTime - startTime;
     if (timeDifference >= DATA_BIT_TOTAL_US) {
       return true;
@@ -136,11 +134,11 @@ auto Driver::receiveStartBit() -> bool {
 
   waitBusHigh();
 
-  auto const startTime = getTimeUs();
+  auto const startTime = getTimeUS();
 
   waitBusLow();
 
-  auto const stopTime = getTimeUs();
+  auto const stopTime = getTimeUS();
   auto const highDuration = stopTime - startTime;
   auto const isStartBit = highDuration >= startBitMinHighUs and highDuration <= startBitMaxHighUs;
 
@@ -150,11 +148,11 @@ auto Driver::receiveStartBit() -> bool {
 auto Driver::receiveBit() -> Bit {
   waitBusHigh();
 
-  auto const startTime = getTimeUs();
+  auto const startTime = getTimeUS();
 
   waitBusLow();
 
-  auto const stopTime = getTimeUs();
+  auto const stopTime = getTimeUS();
   auto const highDuration = stopTime - startTime;
   auto const bit = decodeBit(highDuration);
 
@@ -186,27 +184,27 @@ auto Driver::receiveAckBit() -> AcknowledgmentType {
 
 auto Driver::transmitStartBit() const -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-  delayUs(START_BIT_HIGH_US);
+  delayUS(START_BIT_HIGH_US);
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
-  delayUs(START_BIT_LOW_US);
+  delayUS(START_BIT_LOW_US);
 }
 
 auto Driver::transmitBit(Bit const bit) const -> void {
-  Driver::Time const highDuration = bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US;
-  Driver::Time const lowDuration = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
+  auto const highDuration = bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US;
+  auto const lowDuration = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-  delayUs(highDuration);
+  delayUS(highDuration);
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
-  delayUs(lowDuration);
+  delayUS(lowDuration);
 }
 
-auto Driver::transmitBits(Data const data, Size const numBits) const -> void {
+auto Driver::transmitBits(Driver::Data const data, Size const numBits) const -> void {
   for (Size i = 0; i < numBits; ++i) {
-    Size const bitPosition = numBits - 1 - i;
-    Bit const bit = static_cast<Bit>(data >> bitPosition & 1);
+    auto const bitPosition = numBits - 1 - i;
+    auto const bit = static_cast<Bit>(data >> bitPosition & 1);
 
     transmitBit(bit);
   }
@@ -221,62 +219,15 @@ auto Driver::sendAckBit(AcknowledgmentType const ack) const -> void {
 }
 
 auto Driver::waitBusLow() -> void {
-  watchdogTimerInit();
-
   while (isBusHigh()) {
-    watchdogTimerReset();
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
-
-  watchdogTimerRemove();
 }
 
 auto Driver::waitBusHigh() -> void {
-  watchdogTimerInit();
-
   while (isBusLow()) {
-    watchdogTimerReset();
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
-
-  watchdogTimerRemove();
-}
-
-auto Driver::watchdogTimerInit() -> bool {
-  Result const result = esp_task_wdt_add_user("iebus_driver", &m_watchdogHandle);
-  if (result != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to add watchdog");
-    return false;
-  }
-
-  return true;
-}
-
-auto Driver::watchdogTimerReset() -> bool {
-  Driver::Time const currentTime = getTimeUs();
-  Driver::Time const timeDifference = currentTime - m_watchdogResetLastTime;
-
-  if (timeDifference < WATCHDOG_TIMER_RESET_MICROSECONDS) {
-    return true;
-  }
-
-  m_watchdogResetLastTime = currentTime;
-
-  Result const result = esp_task_wdt_reset_user(m_watchdogHandle);
-  if (result != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to reset");
-    return false;
-  }
-
-  return true;
-}
-
-auto Driver::watchdogTimerRemove() -> bool {
-  Result const result = esp_task_wdt_delete_user(m_watchdogHandle);
-  if (result != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to remove watchdog");
-    return false;
-  }
-
-  return true;
 }
 
 } // namespace iebus

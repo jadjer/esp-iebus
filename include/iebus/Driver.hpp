@@ -19,8 +19,6 @@
 #pragma once
 
 #include <cstdint>
-#include <esp_task_wdt.h>
-
 #include <iebus/Message.hpp>
 
 namespace iebus {
@@ -30,8 +28,6 @@ enum class AcknowledgmentType : Bit {
   NAK = 1,
 };
 
-using Data = std::uint16_t;
-
 /**
  * @class Driver
  * IEBus Driver
@@ -39,10 +35,7 @@ using Data = std::uint16_t;
 class Driver {
 public:
   using Pin = std::uint8_t;
-
-private:
-  using Time = std::int64_t;
-  using WatchDogHandle = esp_task_wdt_user_handle_t;
+  using Data = std::uint16_t;
 
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
@@ -135,19 +128,12 @@ private:
   auto waitBusHigh() -> void;
 
 private:
-  auto watchdogTimerInit() -> bool;
-  auto watchdogTimerReset() -> bool;
-  auto watchdogTimerRemove() -> bool;
-
-private:
   Pin const m_rxPin;
   Pin const m_txPin;
   Pin const m_enablePin;
 
 private:
   bool m_isEnabled = false;
-  Time m_watchdogResetLastTime = 0;
-  WatchDogHandle m_watchdogHandle = nullptr;
 };
 
 } // namespace iebus

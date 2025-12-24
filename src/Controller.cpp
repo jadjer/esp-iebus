@@ -199,7 +199,7 @@ auto Controller::writeMessage(Message const& message) -> bool {
   }
 
   while (not m_driver.isBusFree()) {
-    delayUs(1);
+    delayUS(1);
   }
 
   m_driver.transmitStartBit();
@@ -272,7 +272,7 @@ auto Controller::writeMessage(Message const& message) -> bool {
   return true;
 }
 
-auto Controller::checkParity(Data const data, Size const size, Bit const parity) -> bool {
+auto Controller::checkParity(Driver::Data const data, Size const size, Bit const parity) -> bool {
   auto const calculatedParity = calculateParity(data, size);
 
   auto const isValid = calculatedParity == parity;
@@ -284,7 +284,7 @@ auto Controller::checkParity(Data const data, Size const size, Bit const parity)
   return true;
 }
 
-auto Controller::calculateParity(Data const data, Size const size) -> Bit {
+auto Controller::calculateParity(Driver::Data const data, Size const size) -> Bit {
   Bit parity = 0;
 
   for (auto i = 0; std::cmp_less(i, size); i++) {

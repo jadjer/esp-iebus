@@ -22,16 +22,16 @@
 
 namespace iebus {
 
-auto getTimeUs() -> Time {
+auto getTimeUS() -> Time {
   return esp_timer_get_time();
 }
 
-auto delayUs(Time const delay) -> void {
-  auto const startTime = getTimeUs();
+auto delayUS(Time const delay) -> void {
+  auto const startTime = getTimeUS();
 
   bool enable = true;
   while (enable) {
-    auto const currentTime = getTimeUs();
+    auto const currentTime = getTimeUS();
     auto const differenceTime = currentTime - startTime;
     auto const isTimeOut = differenceTime >= delay;
 
