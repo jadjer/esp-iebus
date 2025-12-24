@@ -54,7 +54,7 @@ auto formatBytesHex(Bytes bytes) -> std::string {
 
 } // namespace
 
-auto Message::toString() -> std::string {
+auto Message::toString() const -> std::string {
   return std::format("{} M{:#06x} S{:#06x} C{:#04x} L{} [{}]", formatBroadcastType(broadcast), master, slave, control, dataLength, formatBytesHex(data));
 }
 
