@@ -45,7 +45,7 @@ struct Message {
   Size dataLength;
   Bytes data;
 
-  [[maybe_unused]] auto toString() -> std::string;
+  [[maybe_unused]] auto toString() const -> std::string;
 };
 
 } // namespace iebus
