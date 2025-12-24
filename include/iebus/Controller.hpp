@@ -56,13 +56,13 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() const -> std::optional<Message>;
+  [[nodiscard]] auto readMessage() -> std::optional<Message>;
   /**
    * Write a message to IEBus
    * @param message Message
    * @return bool
    */
-  [[nodiscard]] auto writeMessage(Message const& message) const -> bool;
+  [[nodiscard]] auto writeMessage(Message const& message) -> bool;
 
 private:
   /**

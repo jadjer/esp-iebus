@@ -20,6 +20,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 
 namespace iebus {
 
@@ -36,7 +37,6 @@ enum class BroadcastType : Bit {
   FOR_DEVICE = 1,
 };
 
-#pragma pack(push, 1)
 struct Message {
   BroadcastType broadcast;
   Address master;
@@ -44,7 +44,8 @@ struct Message {
   Byte control;
   Size dataLength;
   Bytes data;
+
+  [[maybe_unused]] auto toString() -> std::string;
 };
-#pragma pack(pop)
 
 } // namespace iebus

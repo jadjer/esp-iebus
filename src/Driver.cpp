@@ -28,22 +28,26 @@ namespace iebus {
 
 namespace {
 
+using Result = esp_err_t;
+
 auto constexpr TAG = "IEBusDriver";
+auto constexpr MICROSECONDS_PER_SECOND = 1000000;
+auto constexpr WATCHDOG_TIMER_RESET_MICROSECONDS = 3 * MICROSECONDS_PER_SECOND;
 
-Driver::Time constexpr START_BIT_TOTAL_US = 190;
-Driver::Time constexpr START_BIT_HIGH_US = 171;
-Driver::Time constexpr START_BIT_LOW_US = START_BIT_TOTAL_US - START_BIT_HIGH_US;
-Driver::Time constexpr START_BIT_THRESHOLD_US = 20;
+auto constexpr START_BIT_TOTAL_US = 190;
+auto constexpr START_BIT_HIGH_US = 171;
+auto constexpr START_BIT_LOW_US = START_BIT_TOTAL_US - START_BIT_HIGH_US;
+auto constexpr START_BIT_THRESHOLD_US = 20;
 
-Driver::Time constexpr DATA_BIT_TOTAL_US = 39;
-Driver::Time constexpr DATA_BIT_0_HIGH_US = 33;
-Driver::Time constexpr DATA_BIT_0_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
-Driver::Time constexpr DATA_BIT_1_HIGH_US = 20;
-Driver::Time constexpr DATA_BIT_1_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
+auto constexpr DATA_BIT_TOTAL_US = 39;
+auto constexpr DATA_BIT_0_HIGH_US = 33;
+auto constexpr DATA_BIT_0_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
+auto constexpr DATA_BIT_1_HIGH_US = 20;
+auto constexpr DATA_BIT_1_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
 
-auto decodeBit(Driver::Time const pulseWidthUs) -> Bit {
-  Driver::Time const diff0 = std::abs(pulseWidthUs - DATA_BIT_0_HIGH_US);
-  Driver::Time const diff1 = std::abs(pulseWidthUs - DATA_BIT_1_HIGH_US);
+auto decodeBit(auto const pulseWidthUs) -> Bit {
+  auto const diff0 = std::abs(pulseWidthUs - DATA_BIT_0_HIGH_US);
+  auto const diff1 = std::abs(pulseWidthUs - DATA_BIT_1_HIGH_US);
 
   if (diff1 < diff0) {
     return 1;
@@ -54,7 +58,7 @@ auto decodeBit(Driver::Time const pulseWidthUs) -> Bit {
 
 } // namespace
 
-Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(rx), m_txPin(tx), m_enablePin(enable) {
+Driver::Driver(Driver::Pin const rx, Driver::Pin const tx, Driver::Pin const enable) noexcept : m_rxPin(rx), m_txPin(tx), m_enablePin(enable) {
 
   gpio_config_t const receiverConfiguration = {
       .pin_bit_mask = (1ULL << m_rxPin),
@@ -126,7 +130,7 @@ auto Driver::disable() -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), m_isEnabled);
 }
 
-auto Driver::receiveStartBit() const -> bool {
+auto Driver::receiveStartBit() -> bool {
   auto constexpr startBitMinHighUs = START_BIT_HIGH_US - START_BIT_THRESHOLD_US;
   auto constexpr startBitMaxHighUs = START_BIT_HIGH_US + START_BIT_THRESHOLD_US;
 
@@ -143,7 +147,7 @@ auto Driver::receiveStartBit() const -> bool {
   return isStartBit;
 }
 
-auto Driver::receiveBit() const -> Bit {
+auto Driver::receiveBit() -> Bit {
   waitBusHigh();
 
   auto const startTime = getTimeUs();
@@ -157,7 +161,7 @@ auto Driver::receiveBit() const -> Bit {
   return bit;
 }
 
-auto Driver::receiveBits(Size const numBits) const -> Data {
+auto Driver::receiveBits(Size const numBits) -> Data {
   Data result = 0;
 
   for (Size i = 0; i < numBits; ++i) {
@@ -171,7 +175,7 @@ auto Driver::receiveBits(Size const numBits) const -> Data {
   return result;
 }
 
-auto Driver::receiveAckBit() const -> AcknowledgmentType {
+auto Driver::receiveAckBit() -> AcknowledgmentType {
   auto const ackBit = receiveBit();
   if (ackBit == 0) {
     return AcknowledgmentType::ACK;
@@ -189,8 +193,8 @@ auto Driver::transmitStartBit() const -> void {
 }
 
 auto Driver::transmitBit(Bit const bit) const -> void {
-  Time const highDuration = bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US;
-  Time const lowDuration = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
+  Driver::Time const highDuration = bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US;
+  Driver::Time const lowDuration = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
   delayUs(highDuration);
@@ -216,14 +220,63 @@ auto Driver::sendAckBit(AcknowledgmentType const ack) const -> void {
   transmitBit(1);
 }
 
-auto Driver::waitBusLow() const -> void {
+auto Driver::waitBusLow() -> void {
+  watchdogTimerInit();
+
   while (isBusHigh()) {
+    watchdogTimerReset();
   }
+
+  watchdogTimerRemove();
 }
 
-auto Driver::waitBusHigh() const -> void {
+auto Driver::waitBusHigh() -> void {
+  watchdogTimerInit();
+
   while (isBusLow()) {
+    watchdogTimerReset();
   }
+
+  watchdogTimerRemove();
+}
+
+auto Driver::watchdogTimerInit() -> bool {
+  Result const result = esp_task_wdt_add_user("iebus_driver", &m_watchdogHandle);
+  if (result != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to add watchdog");
+    return false;
+  }
+
+  return true;
+}
+
+auto Driver::watchdogTimerReset() -> bool {
+  Driver::Time const currentTime = getTimeUs();
+  Driver::Time const timeDifference = currentTime - m_watchdogResetLastTime;
+
+  if (timeDifference < WATCHDOG_TIMER_RESET_MICROSECONDS) {
+    return true;
+  }
+
+  m_watchdogResetLastTime = currentTime;
+
+  Result const result = esp_task_wdt_reset_user(m_watchdogHandle);
+  if (result != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to reset");
+    return false;
+  }
+
+  return true;
+}
+
+auto Driver::watchdogTimerRemove() -> bool {
+  Result const result = esp_task_wdt_delete_user(m_watchdogHandle);
+  if (result != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to remove watchdog");
+    return false;
+  }
+
+  return true;
 }
 
 } // namespace iebus

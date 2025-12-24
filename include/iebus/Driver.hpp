@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cstdint>
+#include <esp_task_wdt.h>
 
 #include <iebus/Message.hpp>
 
@@ -38,7 +39,10 @@ using Data = std::uint16_t;
 class Driver {
 public:
   using Pin = std::uint8_t;
+
+private:
   using Time = std::int64_t;
+  using WatchDogHandle = esp_task_wdt_user_handle_t;
 
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
@@ -79,23 +83,23 @@ public:
   /**
    * Send start bit to IEBus
    */
-  [[nodiscard]] auto receiveStartBit() const -> bool;
+  [[nodiscard]] auto receiveStartBit() -> bool;
   /**
    * Get single bit from IEBus
    * @return Data bit
    */
-  [[nodiscard]] auto receiveBit() const -> Bit;
+  [[nodiscard]] auto receiveBit() -> Bit;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto receiveBits(Size numBits) const -> Data;
+  [[nodiscard]] auto receiveBits(Size numBits) -> Data;
   /**
    * Wait ack from IEBus
    * @return Ack value
    */
-  [[nodiscard]] auto receiveAckBit() const -> AcknowledgmentType;
+  [[nodiscard]] auto receiveAckBit() -> AcknowledgmentType;
 
 public:
   /**
@@ -124,11 +128,16 @@ private:
   /**
    * Wait before IEBus is change to low level
    */
-  auto waitBusLow() const -> void;
+  auto waitBusLow() -> void;
   /**
    * Wait before IEBus is change to high level
    */
-  auto waitBusHigh() const -> void;
+  auto waitBusHigh() -> void;
+
+private:
+  auto watchdogTimerInit() -> bool;
+  auto watchdogTimerReset() -> bool;
+  auto watchdogTimerRemove() -> bool;
 
 private:
   Pin const m_rxPin;
@@ -137,6 +146,8 @@ private:
 
 private:
   bool m_isEnabled = false;
+  Time m_watchdogResetLastTime = 0;
+  WatchDogHandle m_watchdogHandle = nullptr;
 };
 
 } // namespace iebus

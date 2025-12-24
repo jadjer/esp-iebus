@@ -7,8 +7,9 @@ set(INCLUDES
 set(SOURCES
         src/common.cpp
 
-        src/Controller.cpp
         src/Driver.cpp
+        src/Message.cpp
+        src/Controller.cpp
 )
 
 set(REQUIRES)

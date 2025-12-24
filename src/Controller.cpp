@@ -53,7 +53,7 @@ auto Controller::isEnabled() const -> bool {
   return m_driver.isEnabled();
 }
 
-auto Controller::readMessage() const -> std::optional<Message> {
+auto Controller::readMessage() -> std::optional<Message> {
   if (not isEnabled()) {
     ESP_LOGE(TAG, "Controller is disabled");
     return std::nullopt;
@@ -192,7 +192,7 @@ auto Controller::readMessage() const -> std::optional<Message> {
   return message;
 }
 
-auto Controller::writeMessage(Message const& message) const -> bool {
+auto Controller::writeMessage(Message const& message) -> bool {
   if (not isEnabled()) {
     ESP_LOGE(TAG, "Controller is disabled");
     return false;
