@@ -8,3 +8,5 @@ BreakBeforeBraces: Attach
 AllowShortFunctionsOnASingleLine: None
 AllowAllParametersOfDeclarationOnNextLine: false
 PointerAlignment: Left
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments: Consecutive

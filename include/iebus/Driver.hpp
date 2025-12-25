@@ -34,7 +34,7 @@ enum class AcknowledgmentType : Bit {
  */
 class Driver {
 public:
-  using Pin = std::uint8_t;
+  using Pin  = std::uint8_t;
   using Data = std::uint16_t;
 
 public:

@@ -26,14 +26,14 @@ namespace iebus {
 
 auto constexpr MAX_MESSAGE_SIZE = 256;
 
-using Bit = std::uint8_t;
-using Byte = std::uint8_t;
-using Size = std::size_t;
-using Bytes = std::array<Byte, MAX_MESSAGE_SIZE>;
+using Bit     = std::uint8_t;
+using Byte    = std::uint8_t;
+using Size    = std::size_t;
+using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
 using Address = std::uint16_t;
 
 enum class BroadcastType : Bit {
-  BROADCAST = 0,
+  BROADCAST  = 0,
   FOR_DEVICE = 1,
 };
 

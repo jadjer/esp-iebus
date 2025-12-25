@@ -31,10 +31,10 @@ namespace {
 auto constexpr TAG = "IEBusController";
 
 auto constexpr MASTER_ADDRESS_BIT_SIZE = 12;
-auto constexpr SLAVE_ADDRESS_BIT_SIZE = 12;
-auto constexpr CONTROL_BIT_SIZE = 4;
-auto constexpr DATA_LENGTH_BIT_SIZE = 8;
-auto constexpr DATA_BIT_SIZE = 8;
+auto constexpr SLAVE_ADDRESS_BIT_SIZE  = 12;
+auto constexpr CONTROL_BIT_SIZE        = 4;
+auto constexpr DATA_LENGTH_BIT_SIZE    = 8;
+auto constexpr DATA_BIT_SIZE           = 8;
 
 } // namespace
 
@@ -78,7 +78,7 @@ auto Controller::readMessage() -> std::optional<Message> {
     message.master = m_driver.receiveBits(MASTER_ADDRESS_BIT_SIZE);
 
     auto const masterParityBit = m_driver.receiveBit();
-    auto const isParityValid = checkParity(message.master, MASTER_ADDRESS_BIT_SIZE, masterParityBit);
+    auto const isParityValid   = checkParity(message.master, MASTER_ADDRESS_BIT_SIZE, masterParityBit);
     if (not isParityValid) {
       ESP_LOGW(TAG, "Master address parity error");
       return std::nullopt;
@@ -88,13 +88,13 @@ auto Controller::readMessage() -> std::optional<Message> {
   {
     message.slave = m_driver.receiveBits(SLAVE_ADDRESS_BIT_SIZE);
 
-    auto const parityBit = m_driver.receiveBit();
-    auto const isParityValid = checkParity(message.slave, SLAVE_ADDRESS_BIT_SIZE, parityBit);
-    auto const ackBit = m_driver.receiveAckBit();
-    auto const isNeedAnswer = ackBit == AcknowledgmentType::ACK;
-    auto const isForDevice = message.broadcast == BroadcastType::FOR_DEVICE;
+    auto const parityBit       = m_driver.receiveBit();
+    auto const isParityValid   = checkParity(message.slave, SLAVE_ADDRESS_BIT_SIZE, parityBit);
+    auto const ackBit          = m_driver.receiveAckBit();
+    auto const isNeedAnswer    = ackBit == AcknowledgmentType::ACK;
+    auto const isForDevice     = message.broadcast == BroadcastType::FOR_DEVICE;
     auto const isForThisDevice = message.slave == m_address;
-    auto const isAnswer = isNeedAnswer and isForDevice and isForThisDevice;
+    auto const isAnswer        = isNeedAnswer and isForDevice and isForThisDevice;
 
     if (not isParityValid) {
       if (isAnswer) {
@@ -113,13 +113,13 @@ auto Controller::readMessage() -> std::optional<Message> {
   {
     message.control = m_driver.receiveBits(CONTROL_BIT_SIZE);
 
-    auto const parityBit = m_driver.receiveBit();
-    auto const isParityValid = checkParity(message.control, CONTROL_BIT_SIZE, parityBit);
-    auto const ackBit = m_driver.receiveAckBit();
-    auto const isNeedAnswer = ackBit == AcknowledgmentType::ACK;
-    auto const isForDevice = message.broadcast == BroadcastType::FOR_DEVICE;
+    auto const parityBit       = m_driver.receiveBit();
+    auto const isParityValid   = checkParity(message.control, CONTROL_BIT_SIZE, parityBit);
+    auto const ackBit          = m_driver.receiveAckBit();
+    auto const isNeedAnswer    = ackBit == AcknowledgmentType::ACK;
+    auto const isForDevice     = message.broadcast == BroadcastType::FOR_DEVICE;
     auto const isForThisDevice = message.slave == m_address;
-    auto const isAnswer = isNeedAnswer and isForDevice and isForThisDevice;
+    auto const isAnswer        = isNeedAnswer and isForDevice and isForThisDevice;
 
     if (not isParityValid) {
       if (isAnswer) {
@@ -138,13 +138,13 @@ auto Controller::readMessage() -> std::optional<Message> {
   {
     message.dataLength = m_driver.receiveBits(DATA_LENGTH_BIT_SIZE);
 
-    auto const parityBit = m_driver.receiveBit();
-    auto const isParityValid = checkParity(message.dataLength, DATA_LENGTH_BIT_SIZE, parityBit);
-    auto const ackBit = m_driver.receiveAckBit();
-    auto const isNeedAnswer = ackBit == AcknowledgmentType::ACK;
-    auto const isForDevice = message.broadcast == BroadcastType::FOR_DEVICE;
+    auto const parityBit       = m_driver.receiveBit();
+    auto const isParityValid   = checkParity(message.dataLength, DATA_LENGTH_BIT_SIZE, parityBit);
+    auto const ackBit          = m_driver.receiveAckBit();
+    auto const isNeedAnswer    = ackBit == AcknowledgmentType::ACK;
+    auto const isForDevice     = message.broadcast == BroadcastType::FOR_DEVICE;
     auto const isForThisDevice = message.slave == m_address;
-    auto const isAnswer = isNeedAnswer and isForDevice and isForThisDevice;
+    auto const isAnswer        = isNeedAnswer and isForDevice and isForThisDevice;
 
     if (not isParityValid) {
       if (isAnswer) {
@@ -167,13 +167,13 @@ auto Controller::readMessage() -> std::optional<Message> {
   for (Size i = 0; i < message.dataLength; i++) {
     message.data[i] = m_driver.receiveBits(DATA_BIT_SIZE);
 
-    auto const parityBit = m_driver.receiveBit();
-    auto const isParityValid = checkParity(message.data[i], DATA_BIT_SIZE, parityBit);
-    auto const ackBit = m_driver.receiveAckBit();
-    auto const isNeedAnswer = ackBit == AcknowledgmentType::ACK;
-    auto const isForDevice = message.broadcast == BroadcastType::FOR_DEVICE;
+    auto const parityBit       = m_driver.receiveBit();
+    auto const isParityValid   = checkParity(message.data[i], DATA_BIT_SIZE, parityBit);
+    auto const ackBit          = m_driver.receiveAckBit();
+    auto const isNeedAnswer    = ackBit == AcknowledgmentType::ACK;
+    auto const isForDevice     = message.broadcast == BroadcastType::FOR_DEVICE;
     auto const isForThisDevice = message.slave == m_address;
-    auto const isAnswer = isNeedAnswer and isForDevice and isForThisDevice;
+    auto const isAnswer        = isNeedAnswer and isForDevice and isForThisDevice;
 
     if (not isParityValid) {
       if (isAnswer) {
@@ -287,7 +287,7 @@ auto Controller::checkParity(Driver::Data const data, Size const size, Bit const
 auto Controller::calculateParity(Driver::Data const data, Size const size) -> Bit {
   Bit parity = 0;
 
-  for (auto i = 0; std::cmp_less(i, size); i++) {
+  for (Size i = 0; i < size; i++) {
     parity ^= data >> i & 1;
   }
 
