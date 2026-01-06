@@ -18,6 +18,7 @@
 
 #include "iebus/Driver.hpp"
 
+#include <algorithm>
 #include <driver/gpio.h>
 
 #include "common.hpp"
@@ -28,26 +29,43 @@ namespace {
 
 auto constexpr TAG = "IEBusDriver";
 
-auto constexpr START_BIT_TOTAL_US = 190;
-auto constexpr START_BIT_HIGH_US = 171;
-auto constexpr START_BIT_LOW_US = START_BIT_TOTAL_US - START_BIT_HIGH_US;
+auto constexpr START_BIT_TOTAL_US     = 190;
+auto constexpr START_BIT_HIGH_US      = 171;
+auto constexpr START_BIT_LOW_US       = START_BIT_TOTAL_US - START_BIT_HIGH_US;
 auto constexpr START_BIT_THRESHOLD_US = 20;
 
-auto constexpr DATA_BIT_TOTAL_US = 39;
+auto constexpr DATA_BIT_TOTAL_US  = 39;
 auto constexpr DATA_BIT_0_HIGH_US = 33;
-auto constexpr DATA_BIT_0_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
+auto constexpr DATA_BIT_0_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
 auto constexpr DATA_BIT_1_HIGH_US = 20;
-auto constexpr DATA_BIT_1_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
+auto constexpr DATA_BIT_1_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
 
-auto decodeBit(auto const pulseWidthUs) -> Bit {
-  auto const diff0 = std::abs(pulseWidthUs - DATA_BIT_0_HIGH_US);
-  auto const diff1 = std::abs(pulseWidthUs - DATA_BIT_1_HIGH_US);
+auto constexpr BIT_THRESHOLD_US = 20;
 
-  if (diff1 < diff0) {
-    return 1;
+auto detectBitType(Time const bitDuration) -> BitType {
+  auto const dStart = std::abs(bitDuration - START_BIT_HIGH_US);
+  auto const d0 = std::abs(bitDuration - DATA_BIT_0_HIGH_US);
+  auto const d1 = std::abs(bitDuration - DATA_BIT_1_HIGH_US);
+
+  auto const minDiff = std::min({dStart, d0, d1});
+
+//  if (minDiff > BIT_THRESHOLD_US) {
+//    return BitType::BIN_UNKNOWN;
+//  }
+
+  if (minDiff == dStart) {
+    return BitType::BIT_START;
   }
 
-  return 0;
+  if (minDiff == d0) {
+    return BitType::BIT_0;
+  }
+
+  if (minDiff == d1) {
+    return BitType::BIT_1;
+  }
+
+  return BitType::BIN_UNKNOWN;
 }
 
 } // namespace
@@ -56,28 +74,28 @@ Driver::Driver(Driver::Pin const rx, Driver::Pin const tx, Driver::Pin const ena
 
   gpio_config_t const receiverConfiguration = {
       .pin_bit_mask = (1ULL << m_rxPin),
-      .mode = GPIO_MODE_INPUT,
-      .pull_up_en = GPIO_PULLUP_DISABLE,
+      .mode         = GPIO_MODE_INPUT,
+      .pull_up_en   = GPIO_PULLUP_DISABLE,
       .pull_down_en = GPIO_PULLDOWN_DISABLE,
-      .intr_type = GPIO_INTR_DISABLE,
+      .intr_type    = GPIO_INTR_DISABLE,
   };
   gpio_config(&receiverConfiguration);
 
   gpio_config_t const transmitterConfiguration = {
       .pin_bit_mask = (1ULL << m_txPin),
-      .mode = GPIO_MODE_OUTPUT,
-      .pull_up_en = GPIO_PULLUP_DISABLE,
+      .mode         = GPIO_MODE_OUTPUT,
+      .pull_up_en   = GPIO_PULLUP_DISABLE,
       .pull_down_en = GPIO_PULLDOWN_ENABLE,
-      .intr_type = GPIO_INTR_DISABLE,
+      .intr_type    = GPIO_INTR_DISABLE,
   };
   gpio_config(&transmitterConfiguration);
 
   gpio_config_t const enableConfiguration = {
       .pin_bit_mask = (1ULL << m_enablePin),
-      .mode = GPIO_MODE_OUTPUT,
-      .pull_up_en = GPIO_PULLUP_DISABLE,
+      .mode         = GPIO_MODE_OUTPUT,
+      .pull_up_en   = GPIO_PULLUP_DISABLE,
       .pull_down_en = GPIO_PULLDOWN_ENABLE,
-      .intr_type = GPIO_INTR_DISABLE,
+      .intr_type    = GPIO_INTR_DISABLE,
   };
   gpio_config(&enableConfiguration);
 }
@@ -102,7 +120,7 @@ auto Driver::isBusFree() const -> bool {
   auto const startTime = getTimeUS();
 
   while (isBusLow()) {
-    auto const currentTime = getTimeUS();
+    auto const currentTime    = getTimeUS();
     auto const timeDifference = currentTime - startTime;
     if (timeDifference >= DATA_BIT_TOTAL_US) {
       return true;
@@ -124,7 +142,7 @@ auto Driver::disable() -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), 0);
 }
 
-auto Driver::receiveStartBit() -> bool {
+auto Driver::readStartBit() -> bool {
   auto constexpr startBitMinHighUs = START_BIT_HIGH_US - START_BIT_THRESHOLD_US;
   auto constexpr startBitMaxHighUs = START_BIT_HIGH_US + START_BIT_THRESHOLD_US;
 
@@ -134,32 +152,45 @@ auto Driver::receiveStartBit() -> bool {
 
   waitBusLow();
 
-  auto const stopTime = getTimeUS();
+  auto const stopTime     = getTimeUS();
   auto const highDuration = stopTime - startTime;
-  auto const isStartBit = highDuration >= startBitMinHighUs and highDuration <= startBitMaxHighUs;
+  auto const isStartBit   = highDuration >= startBitMinHighUs and highDuration <= startBitMaxHighUs;
 
   return isStartBit;
 }
 
-auto Driver::receiveBit() -> Bit {
+auto Driver::readBit() -> std::optional<Bit> {
   waitBusHigh();
 
   auto const startTime = getTimeUS();
 
   waitBusLow();
 
-  auto const stopTime = getTimeUS();
-  auto const highDuration = stopTime - startTime;
-  auto const bit = decodeBit(highDuration);
+  auto const stopTime    = getTimeUS();
+  auto const bitDuration = stopTime - startTime;
+  auto const bitType     = detectBitType(bitDuration);
 
-  return bit;
+  if (bitType == BitType::BIT_0) {
+    return 0;
+  }
+
+  if (bitType == BitType::BIT_1) {
+    return 1;
+  }
+
+  return std::nullopt;
 }
 
-auto Driver::receiveBits(Size const numBits) -> Data {
+auto Driver::readBits(Size const numBits) -> std::optional<Data> {
   Data result = 0;
 
   for (Size i = 0; i < numBits; ++i) {
-    auto const bit = receiveBit();
+    auto const optionalBit = readBit();
+    if (not optionalBit) {
+      return std::nullopt;
+    }
+
+    auto const bit      = optionalBit.value();
     auto const bitValue = bit ? 1 : 0;
     auto const bitShift = numBits - 1 - i;
 
@@ -169,16 +200,22 @@ auto Driver::receiveBits(Size const numBits) -> Data {
   return result;
 }
 
-auto Driver::receiveAckBit() -> AcknowledgmentType {
-  auto const ackBit = receiveBit();
-  if (ackBit == 0) {
+auto Driver::readAckBit() -> std::optional<AcknowledgmentType> {
+  auto const optionalBit = readBit();
+  if (not optionalBit) {
+    return std::nullopt;
+  }
+
+  auto const bit = optionalBit.value();
+
+  if (bit == 0) {
     return AcknowledgmentType::ACK;
   }
 
   return AcknowledgmentType::NAK;
 }
 
-auto Driver::transmitStartBit() const -> void {
+auto Driver::writeStartBit() const -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
   delayUS(START_BIT_HIGH_US);
 
@@ -186,9 +223,9 @@ auto Driver::transmitStartBit() const -> void {
   delayUS(START_BIT_LOW_US);
 }
 
-auto Driver::transmitBit(Bit const bit) const -> void {
+auto Driver::writeBit(Bit const bit) const -> void {
   auto const highDuration = bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US;
-  auto const lowDuration = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
+  auto const lowDuration  = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
   delayUS(highDuration);
@@ -197,21 +234,21 @@ auto Driver::transmitBit(Bit const bit) const -> void {
   delayUS(lowDuration);
 }
 
-auto Driver::transmitBits(Driver::Data const data, Size const numBits) const -> void {
+auto Driver::writeBits(Driver::Data const data, Size const numBits) const -> void {
   for (Size i = 0; i < numBits; ++i) {
     auto const bitPosition = numBits - 1 - i;
-    auto const bit = static_cast<Bit>(data >> bitPosition & 1);
+    auto const bit         = static_cast<Bit>(data >> bitPosition & 1);
 
-    transmitBit(bit);
+    writeBit(bit);
   }
 }
 
-auto Driver::sendAckBit(AcknowledgmentType const ack) const -> void {
+auto Driver::writeAckBit(AcknowledgmentType const ack) const -> void {
   if (ack == AcknowledgmentType::ACK) {
-    return transmitBit(0);
+    return writeBit(0);
   }
 
-  transmitBit(1);
+  writeBit(1);
 }
 
 auto Driver::waitBusLow() -> void {

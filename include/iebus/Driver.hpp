@@ -20,12 +20,20 @@
 
 #include <cstdint>
 #include <iebus/Message.hpp>
+#include <optional>
 
 namespace iebus {
 
 enum class AcknowledgmentType : Bit {
   ACK = 0,
   NAK = 1,
+};
+
+enum class BitType : Bit {
+  BIT_START,
+  BIT_0,
+  BIT_1,
+  BIN_UNKNOWN,
 };
 
 /**
@@ -76,46 +84,46 @@ public:
   /**
    * Send start bit to IEBus
    */
-  [[nodiscard]] auto receiveStartBit() -> bool;
+  [[nodiscard]] auto readStartBit() -> bool;
   /**
    * Get single bit from IEBus
    * @return Data bit
    */
-  [[nodiscard]] auto receiveBit() -> Bit;
+  [[nodiscard]] auto readBit() -> std::optional<Bit>;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto receiveBits(Size numBits) -> Data;
+  [[nodiscard]] auto readBits(Size numBits) -> std::optional<Data>;
   /**
    * Wait ack from IEBus
    * @return Ack value
    */
-  [[nodiscard]] auto receiveAckBit() -> AcknowledgmentType;
+  [[nodiscard]] auto readAckBit() -> std::optional<AcknowledgmentType>;
 
 public:
   /**
    * Get start bit from IEBus
    * @return
    */
-  auto transmitStartBit() const -> void;
+  auto writeStartBit() const -> void;
   /**
    * Send bit to IEBus
    * @param bit single bit data
    */
-  auto transmitBit(Bit bit) const -> void;
+  auto writeBit(Bit bit) const -> void;
   /**
    * Send data bits to IEBus
    * @param data data bits
    * @param numBits data size
    */
-  auto transmitBits(Data data, Size numBits) const -> void;
+  auto writeBits(Data data, Size numBits) const -> void;
   /**
    * Send ack to IEBus
    * @param ack ack value
    */
-  auto sendAckBit(AcknowledgmentType ack) const -> void;
+  auto writeAckBit(AcknowledgmentType ack) const -> void;
 
 private:
   /**
