@@ -42,7 +42,7 @@ auto constexpr DATA_BIT_1_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
 
 auto constexpr BIT_THRESHOLD_US = 20;
 
-auto detectBitType(Time const bitDuration) -> BitType {
+auto detectBitType(Time const bitDuration) -> Driver::BitType {
   auto const dStart = std::abs(bitDuration - START_BIT_HIGH_US);
   auto const d0 = std::abs(bitDuration - DATA_BIT_0_HIGH_US);
   auto const d1 = std::abs(bitDuration - DATA_BIT_1_HIGH_US);
@@ -54,18 +54,18 @@ auto detectBitType(Time const bitDuration) -> BitType {
 //  }
 
   if (minDiff == dStart) {
-    return BitType::BIT_START;
+    return Driver::BitType::BIT_START;
   }
 
   if (minDiff == d0) {
-    return BitType::BIT_0;
+    return Driver::BitType::BIT_0;
   }
 
   if (minDiff == d1) {
-    return BitType::BIT_1;
+    return Driver::BitType::BIT_1;
   }
 
-  return BitType::BIN_UNKNOWN;
+  return Driver::BitType::BIN_UNKNOWN;
 }
 
 } // namespace
@@ -159,7 +159,7 @@ auto Driver::readStartBit() -> bool {
   return isStartBit;
 }
 
-auto Driver::readBit() -> std::optional<Bit> {
+auto Driver::readBit() -> std::optional<Driver::Bit> {
   waitBusHigh();
 
   auto const startTime = getTimeUS();
@@ -181,10 +181,10 @@ auto Driver::readBit() -> std::optional<Bit> {
   return std::nullopt;
 }
 
-auto Driver::readBits(Size const numBits) -> std::optional<Data> {
-  Data result = 0;
+auto Driver::readBits(Driver::Size const numBits) -> std::optional<Driver::Data> {
+  Driver::Data result = 0;
 
-  for (Size i = 0; i < numBits; ++i) {
+  for (Driver::Size i = 0; i < numBits; ++i) {
     auto const optionalBit = readBit();
     if (not optionalBit) {
       return std::nullopt;
@@ -200,7 +200,7 @@ auto Driver::readBits(Size const numBits) -> std::optional<Data> {
   return result;
 }
 
-auto Driver::readAckBit() -> std::optional<AcknowledgmentType> {
+auto Driver::readAckBit() -> std::optional<Driver::AckType> {
   auto const optionalBit = readBit();
   if (not optionalBit) {
     return std::nullopt;
@@ -209,10 +209,10 @@ auto Driver::readAckBit() -> std::optional<AcknowledgmentType> {
   auto const bit = optionalBit.value();
 
   if (bit == 0) {
-    return AcknowledgmentType::ACK;
+    return Driver::AckType::ACK;
   }
 
-  return AcknowledgmentType::NAK;
+  return Driver::AckType::NAK;
 }
 
 auto Driver::writeStartBit() const -> void {
@@ -234,8 +234,8 @@ auto Driver::writeBit(Bit const bit) const -> void {
   delayUS(lowDuration);
 }
 
-auto Driver::writeBits(Driver::Data const data, Size const numBits) const -> void {
-  for (Size i = 0; i < numBits; ++i) {
+auto Driver::writeBits(Driver::Data const data, Driver::Size const numBits) const -> void {
+  for (Driver::Size i = 0; i < numBits; ++i) {
     auto const bitPosition = numBits - 1 - i;
     auto const bit         = static_cast<Bit>(data >> bitPosition & 1);
 
@@ -243,8 +243,8 @@ auto Driver::writeBits(Driver::Data const data, Size const numBits) const -> voi
   }
 }
 
-auto Driver::writeAckBit(AcknowledgmentType const ack) const -> void {
-  if (ack == AcknowledgmentType::ACK) {
+auto Driver::writeAckBit(Driver::AckType const ack) const -> void {
+  if (ack == Driver::AckType::ACK) {
     return writeBit(0);
   }
 

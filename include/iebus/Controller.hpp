@@ -65,23 +65,6 @@ public:
   [[nodiscard]] auto writeMessage(Message const& message) -> bool;
 
 private:
-  /**
-   * Check parity for calculated parity
-   * @param data Data for check
-   * @param size Data size
-   * @param parity Etalon parity
-   * @return Comparison result
-   */
-  static auto checkParity(Driver::Data data, Size size, Bit parity) -> bool;
-  /**
-   * Calculate parity for calculated parity
-   * @param data Data for calculate
-   * @param size Data size
-   * @return Parity bit
-   */
-  static auto calculateParity(Driver::Data data, Size size) -> Bit;
-
-private:
   Address const m_address;
 
 private:

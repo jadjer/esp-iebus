@@ -18,23 +18,11 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
-#include <iebus/Message.hpp>
 #include <optional>
 
 namespace iebus {
-
-enum class AcknowledgmentType : Bit {
-  ACK = 0,
-  NAK = 1,
-};
-
-enum class BitType : Bit {
-  BIT_START,
-  BIT_0,
-  BIT_1,
-  BIN_UNKNOWN,
-};
 
 /**
  * @class Driver
@@ -44,6 +32,20 @@ class Driver {
 public:
   using Pin  = std::uint8_t;
   using Data = std::uint16_t;
+  using Bit = std::uint8_t;
+  using Size = std::size_t;
+
+  enum class AckType : Bit {
+    ACK = 0,
+    NAK = 1,
+  };
+
+  enum class BitType : Bit {
+    BIT_0 = 0,
+    BIT_1 = 1,
+    BIT_START = 2,
+    BIN_UNKNOWN = 3,
+  };
 
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
@@ -100,7 +102,7 @@ public:
    * Wait ack from IEBus
    * @return Ack value
    */
-  [[nodiscard]] auto readAckBit() -> std::optional<AcknowledgmentType>;
+  [[nodiscard]] auto readAckBit() -> std::optional<AckType>;
 
 public:
   /**
@@ -123,7 +125,7 @@ public:
    * Send ack to IEBus
    * @param ack ack value
    */
-  auto writeAckBit(AcknowledgmentType ack) const -> void;
+  auto writeAckBit(AckType ack) const -> void;
 
 private:
   /**
