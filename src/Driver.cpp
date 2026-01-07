@@ -19,8 +19,8 @@
 #include "iebus/Driver.hpp"
 
 #include <algorithm>
-
 #include <driver/gpio.h>
+#include <esp_log.h>
 
 #include "common.hpp"
 
@@ -137,15 +137,7 @@ auto Driver::disable() -> void {
 }
 
 auto Driver::readStartBit() -> bool {
-  waitBusHigh();
-
-  auto const startTime = getTimeUS();
-
-  waitBusLow();
-
-  auto const stopTime    = getTimeUS();
-  auto const bitDuration = stopTime - startTime;
-  auto const bitType     = detectBitType(bitDuration);
+  auto const bitType = readBitType();
 
   if (bitType == BitType::BIT_START) {
     return true;
@@ -155,15 +147,7 @@ auto Driver::readStartBit() -> bool {
 }
 
 auto Driver::readBit() -> std::optional<Driver::Bit> {
-  waitBusHigh();
-
-  auto const startTime = getTimeUS();
-
-  waitBusLow();
-
-  auto const stopTime    = getTimeUS();
-  auto const bitDuration = stopTime - startTime;
-  auto const bitType     = detectBitType(bitDuration);
+  auto const bitType = readBitType();
 
   if (bitType == BitType::BIT_0) {
     return 0;
@@ -171,6 +155,20 @@ auto Driver::readBit() -> std::optional<Driver::Bit> {
 
   if (bitType == BitType::BIT_1) {
     return 1;
+  }
+
+  return std::nullopt;
+}
+
+auto Driver::readAckBit() -> std::optional<Driver::AckType> {
+  auto const bitType = readBitType();
+
+  if (bitType == BitType::BIT_0) {
+    return Driver::AckType::ACK;
+  }
+
+  if (bitType == BitType::BIT_1) {
+    return Driver::AckType::NAK;
   }
 
   return std::nullopt;
@@ -194,25 +192,6 @@ auto Driver::readBits(Driver::Size const numBits) -> std::optional<Driver::Data>
   return result;
 }
 
-auto Driver::readAckBit() -> std::optional<Driver::AckType> {
-  auto const optionalBit = readBit();
-  if (not optionalBit) {
-    return std::nullopt;
-  }
-
-  auto const bit = optionalBit.value();
-
-  if (bit == 0) {
-    return Driver::AckType::ACK;
-  }
-
-  if (bit == 1) {
-    return Driver::AckType::NAK;
-  }
-
-  return std::nullopt;
-}
-
 auto Driver::writeStartBit() const -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
   delayUS(START_BIT_HIGH_US);
@@ -232,6 +211,14 @@ auto Driver::writeBit(Bit const bit) const -> void {
   delayUS(lowDuration);
 }
 
+auto Driver::writeAckBit(Driver::AckType const ack) const -> void {
+  if (ack == Driver::AckType::ACK) {
+    return writeBit(0);
+  }
+
+  writeBit(1);
+}
+
 auto Driver::writeBits(Driver::Data const data, Driver::Size const numBits) const -> void {
   for (Driver::Size i = 0; i < numBits; ++i) {
     auto const bitPosition = numBits - 1 - i;
@@ -241,12 +228,18 @@ auto Driver::writeBits(Driver::Data const data, Driver::Size const numBits) cons
   }
 }
 
-auto Driver::writeAckBit(Driver::AckType const ack) const -> void {
-  if (ack == Driver::AckType::ACK) {
-    return writeBit(0);
-  }
+auto Driver::readBitType() -> Driver::BitType {
+  waitBusHigh();
 
-  writeBit(1);
+  auto const startTime = getTimeUS();
+
+  waitBusLow();
+
+  auto const stopTime    = getTimeUS();
+  auto const bitDuration = stopTime - startTime;
+  auto const bitType     = detectBitType(bitDuration);
+
+  return bitType;
 }
 
 auto Driver::waitBusLow() -> void {

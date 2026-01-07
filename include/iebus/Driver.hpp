@@ -93,16 +93,16 @@ public:
    */
   [[nodiscard]] auto readBit() -> std::optional<Bit>;
   /**
+   * Wait ack from IEBus
+   * @return Ack value
+   */
+  [[nodiscard]] auto readAckBit() -> std::optional<AckType>;
+  /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
   [[nodiscard]] auto readBits(Size numBits) -> std::optional<Data>;
-  /**
-   * Wait ack from IEBus
-   * @return Ack value
-   */
-  [[nodiscard]] auto readAckBit() -> std::optional<AckType>;
 
 public:
   /**
@@ -116,16 +116,23 @@ public:
    */
   auto writeBit(Bit bit) const -> void;
   /**
+   * Send ack to IEBus
+   * @param ack ack value
+   */
+  auto writeAckBit(AckType ack) const -> void;
+  /**
    * Send data bits to IEBus
    * @param data data bits
    * @param numBits data size
    */
   auto writeBits(Data data, Size numBits) const -> void;
+
+private:
   /**
-   * Send ack to IEBus
-   * @param ack ack value
+   * Read bit type
+   * @return Bit type
    */
-  auto writeAckBit(AckType ack) const -> void;
+  [[nodiscard]] auto readBitType() -> BitType;
 
 private:
   /**
