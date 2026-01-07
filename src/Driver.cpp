@@ -19,6 +19,7 @@
 #include "iebus/Driver.hpp"
 
 #include <algorithm>
+
 #include <driver/gpio.h>
 
 #include "common.hpp"
@@ -29,10 +30,9 @@ namespace {
 
 auto constexpr TAG = "IEBusDriver";
 
-auto constexpr START_BIT_TOTAL_US     = 190;
-auto constexpr START_BIT_HIGH_US      = 171;
-auto constexpr START_BIT_LOW_US       = START_BIT_TOTAL_US - START_BIT_HIGH_US;
-auto constexpr START_BIT_THRESHOLD_US = 20;
+auto constexpr START_BIT_TOTAL_US = 190;
+auto constexpr START_BIT_HIGH_US  = 171;
+auto constexpr START_BIT_LOW_US   = START_BIT_TOTAL_US - START_BIT_HIGH_US;
 
 auto constexpr DATA_BIT_TOTAL_US  = 39;
 auto constexpr DATA_BIT_0_HIGH_US = 33;
@@ -40,18 +40,12 @@ auto constexpr DATA_BIT_0_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
 auto constexpr DATA_BIT_1_HIGH_US = 20;
 auto constexpr DATA_BIT_1_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
 
-auto constexpr BIT_THRESHOLD_US = 20;
-
 auto detectBitType(Time const bitDuration) -> Driver::BitType {
   auto const dStart = std::abs(bitDuration - START_BIT_HIGH_US);
-  auto const d0 = std::abs(bitDuration - DATA_BIT_0_HIGH_US);
-  auto const d1 = std::abs(bitDuration - DATA_BIT_1_HIGH_US);
+  auto const d0     = std::abs(bitDuration - DATA_BIT_0_HIGH_US);
+  auto const d1     = std::abs(bitDuration - DATA_BIT_1_HIGH_US);
 
   auto const minDiff = std::min({dStart, d0, d1});
-
-//  if (minDiff > BIT_THRESHOLD_US) {
-//    return BitType::BIN_UNKNOWN;
-//  }
 
   if (minDiff == dStart) {
     return Driver::BitType::BIT_START;
@@ -143,20 +137,21 @@ auto Driver::disable() -> void {
 }
 
 auto Driver::readStartBit() -> bool {
-  auto constexpr startBitMinHighUs = START_BIT_HIGH_US - START_BIT_THRESHOLD_US;
-  auto constexpr startBitMaxHighUs = START_BIT_HIGH_US + START_BIT_THRESHOLD_US;
-
   waitBusHigh();
 
   auto const startTime = getTimeUS();
 
   waitBusLow();
 
-  auto const stopTime     = getTimeUS();
-  auto const highDuration = stopTime - startTime;
-  auto const isStartBit   = highDuration >= startBitMinHighUs and highDuration <= startBitMaxHighUs;
+  auto const stopTime    = getTimeUS();
+  auto const bitDuration = stopTime - startTime;
+  auto const bitType     = detectBitType(bitDuration);
 
-  return isStartBit;
+  if (bitType == BitType::BIT_START) {
+    return true;
+  }
+
+  return false;
 }
 
 auto Driver::readBit() -> std::optional<Driver::Bit> {
@@ -256,11 +251,13 @@ auto Driver::writeAckBit(Driver::AckType const ack) const -> void {
 
 auto Driver::waitBusLow() -> void {
   while (isBusHigh()) {
+    delayUS(1);
   }
 }
 
 auto Driver::waitBusHigh() -> void {
   while (isBusLow()) {
+    delayUS(1);
   }
 }
 
