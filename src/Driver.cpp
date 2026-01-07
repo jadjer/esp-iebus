@@ -191,10 +191,9 @@ auto Driver::readBits(Driver::Size const numBits) -> std::optional<Driver::Data>
     }
 
     auto const bit      = optionalBit.value();
-    auto const bitValue = bit ? 1 : 0;
     auto const bitShift = numBits - 1 - i;
 
-    result |= bitValue << bitShift;
+    result |= bit << bitShift;
   }
 
   return result;
@@ -212,7 +211,11 @@ auto Driver::readAckBit() -> std::optional<Driver::AckType> {
     return Driver::AckType::ACK;
   }
 
-  return Driver::AckType::NAK;
+  if (bit == 1) {
+    return Driver::AckType::NAK;
+  }
+
+  return std::nullopt;
 }
 
 auto Driver::writeStartBit() const -> void {
