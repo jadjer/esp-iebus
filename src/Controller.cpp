@@ -67,14 +67,13 @@ auto Controller::isEnabled() const -> bool {
   return m_driver.isEnabled();
 }
 
-auto Controller::readMessage() -> std::optional<Message> {
+auto Controller::readMessage() -> std::expected<Message, ReadError> {
   if (not isEnabled()) {
-    ESP_LOGW(TAG, "Controller is disabled");
-    return std::nullopt;
+    return std::unexpected(ReadError::CONTROLLER_DISABLED);
   }
 
   if (not m_driver.readStartBit()) {
-    return std::nullopt;
+    return std::unexpected(ReadError::START_BIT_READ_ERROR);
   }
 
   Message message = {};
@@ -82,8 +81,7 @@ auto Controller::readMessage() -> std::optional<Message> {
   {
     auto const optionalBroadcastBit = m_driver.readBit();
     if (not optionalBroadcastBit) {
-      ESP_LOGE(TAG, "Broadcast bit read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::BROADCAST_BIT_READ_ERROR);
     }
 
     auto const broadcastBit = optionalBroadcastBit.value();
@@ -98,14 +96,12 @@ auto Controller::readMessage() -> std::optional<Message> {
   {
     auto const optionalData = m_driver.readBits(MASTER_ADDRESS_BIT_SIZE);
     if (not optionalData) {
-      ESP_LOGE(TAG, "Master address data read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::MASTER_ADDRESS_DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      ESP_LOGW(TAG, "Master address parity bit read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::MASTER_ADDRESS_PARITY_BIT_READ_ERROR);
     }
 
     auto const data      = optionalData.value();
@@ -113,8 +109,7 @@ auto Controller::readMessage() -> std::optional<Message> {
 
     auto const isParityValid = checkParity(data, MASTER_ADDRESS_BIT_SIZE, parityBit);
     if (not isParityValid) {
-      ESP_LOGW(TAG, "Master address parity error");
-      return std::nullopt;
+      return std::unexpected(ReadError::MASTER_ADDRESS_PARITY_WRONG);
     }
 
     message.master = data;
@@ -123,20 +118,17 @@ auto Controller::readMessage() -> std::optional<Message> {
   {
     auto const optionalData = m_driver.readBits(SLAVE_ADDRESS_BIT_SIZE);
     if (not optionalData) {
-      ESP_LOGE(TAG, "Slave address data read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::SLAVE_ADDRESS_DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      ESP_LOGW(TAG, "Slave address parity bit read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::SLAVE_ADDRESS_PARITY_BIT_READ_ERROR);
     }
 
     auto const optionalAckBit = m_driver.readAckBit();
     if (not optionalAckBit) {
-      ESP_LOGE(TAG, "Slave address ack bit read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::SLAVE_ADDRESS_ACK_BIT_READ_ERROR);
     }
 
     auto const data            = optionalData.value();
@@ -153,8 +145,7 @@ auto Controller::readMessage() -> std::optional<Message> {
         m_driver.writeAckBit(Driver::AckType::NAK);
       }
 
-      ESP_LOGW(TAG, "Slave address parity error");
-      return std::nullopt;
+      return std::unexpected(ReadError::SLAVE_ADDRESS_PARITY_WRONG);
     }
 
     if (isAnswer) {
@@ -167,20 +158,17 @@ auto Controller::readMessage() -> std::optional<Message> {
   {
     auto const optionalData = m_driver.readBits(CONTROL_BIT_SIZE);
     if (not optionalData) {
-      ESP_LOGE(TAG, "Control data read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::CONTROL_DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      ESP_LOGW(TAG, "Control parity bit read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::CONTROL_PARITY_BIT_READ_ERROR);
     }
 
     auto const optionalAckBit = m_driver.readAckBit();
     if (not optionalAckBit) {
-      ESP_LOGE(TAG, "Control ack bit read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::CONTROL_ACK_BIT_READ_ERROR);
     }
 
     auto const data            = optionalData.value();
@@ -197,8 +185,7 @@ auto Controller::readMessage() -> std::optional<Message> {
         m_driver.writeAckBit(Driver::AckType::NAK);
       }
 
-      ESP_LOGW(TAG, "Control parity error");
-      return std::nullopt;
+      return std::unexpected(ReadError::CONTROL_PARITY_WRONG);
     }
 
     if (isAnswer) {
@@ -211,20 +198,17 @@ auto Controller::readMessage() -> std::optional<Message> {
   {
     auto const optionalData = m_driver.readBits(DATA_LENGTH_BIT_SIZE);
     if (not optionalData) {
-      ESP_LOGE(TAG, "Data length read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::LENGTH_DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      ESP_LOGW(TAG, "Data length parity bit read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::LENGTH_PARITY_BIT_READ_ERROR);
     }
 
     auto const optionalAckBit = m_driver.readAckBit();
     if (not optionalAckBit) {
-      ESP_LOGE(TAG, "Data length ack bit read error");
-      return std::nullopt;
+      return std::unexpected(ReadError::LENGTH_ACK_BIT_READ_ERROR);
     }
 
     auto const data            = optionalData.value();
@@ -241,8 +225,7 @@ auto Controller::readMessage() -> std::optional<Message> {
         m_driver.writeAckBit(Driver::AckType::NAK);
       }
 
-      ESP_LOGW(TAG, "Length parity error");
-      return std::nullopt;
+      return std::unexpected(ReadError::LENGTH_PARITY_WRONG);
     }
 
     if (isAnswer) {
@@ -259,20 +242,17 @@ auto Controller::readMessage() -> std::optional<Message> {
   for (Size i = 0; i < message.dataLength; i++) {
     auto const optionalData = m_driver.readBits(DATA_BIT_SIZE);
     if (not optionalData) {
-      ESP_LOGE(TAG, "Data[%u] read error", i);
-      return std::nullopt;
+      return std::unexpected(ReadError::DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      ESP_LOGW(TAG, "Data[%u] parity bit read error", i);
-      return std::nullopt;
+      return std::unexpected(ReadError::DATA_PARITY_BIT_READ_ERROR);
     }
 
     auto const optionalAckBit = m_driver.readAckBit();
     if (not optionalAckBit) {
-      ESP_LOGE(TAG, "Data[%u] ack bit read error", i);
-      return std::nullopt;
+      return std::unexpected(ReadError::DATA_ACK_BIT_READ_ERROR);
     }
 
     auto const data            = optionalData.value();
@@ -289,8 +269,7 @@ auto Controller::readMessage() -> std::optional<Message> {
         m_driver.writeAckBit(Driver::AckType::NAK);
       }
 
-      ESP_LOGW(TAG, "Data[%u] byte parity error", i);
-      return std::nullopt;
+      return std::unexpected(ReadError::DATA_PARITY_WRONG);
     }
 
     if (isAnswer) {

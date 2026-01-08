@@ -28,12 +28,12 @@ namespace {
 auto formatBroadcastType(BroadcastType type) -> std::string {
   switch (type) {
   case BroadcastType::BROADCAST:
-    return "Brd";
+    return "B";
   case BroadcastType::FOR_DEVICE:
-    return "Dir";
+    return "D";
   }
 
-  return "Unk";
+  return "U";
 }
 
 auto formatBytesHex(Bytes const bytes, Size const byteSize) -> std::string {
@@ -53,7 +53,7 @@ auto formatBytesHex(Bytes const bytes, Size const byteSize) -> std::string {
 } // namespace
 
 auto Message::toString() const -> std::string {
-  return std::format("{} M{:04x} S{:04x} C{:02x} L{} [{}]", formatBroadcastType(broadcast), master, slave, control, dataLength, formatBytesHex(data, dataLength));
+  return std::format("{} {:3X} {:3X} {:1X} [{}]", formatBroadcastType(broadcast), master, slave, control, formatBytesHex(data, dataLength));
 }
 
 } // namespace iebus

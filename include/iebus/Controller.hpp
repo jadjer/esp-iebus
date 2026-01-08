@@ -18,12 +18,37 @@
 
 #pragma once
 
-#include <optional>
+#include <expected>
 
 #include <iebus/Driver.hpp>
 #include <iebus/Message.hpp>
 
 namespace iebus {
+
+enum class ReadError : Bit {
+  CONTROLLER_DISABLED = 0,
+  START_BIT_READ_ERROR = 10,
+  BROADCAST_BIT_READ_ERROR = 20,
+  MASTER_ADDRESS_DATA_READ_ERROR = 30,
+  MASTER_ADDRESS_PARITY_BIT_READ_ERROR = 31,
+  MASTER_ADDRESS_PARITY_WRONG = 32,
+  SLAVE_ADDRESS_DATA_READ_ERROR = 40,
+  SLAVE_ADDRESS_PARITY_BIT_READ_ERROR = 41,
+  SLAVE_ADDRESS_ACK_BIT_READ_ERROR = 42,
+  SLAVE_ADDRESS_PARITY_WRONG = 43,
+  CONTROL_DATA_READ_ERROR = 50,
+  CONTROL_PARITY_BIT_READ_ERROR = 51,
+  CONTROL_ACK_BIT_READ_ERROR = 52,
+  CONTROL_PARITY_WRONG = 53,
+  LENGTH_DATA_READ_ERROR = 60,
+  LENGTH_PARITY_BIT_READ_ERROR = 61,
+  LENGTH_ACK_BIT_READ_ERROR = 62,
+  LENGTH_PARITY_WRONG = 63,
+  DATA_READ_ERROR = 70,
+  DATA_PARITY_BIT_READ_ERROR = 71,
+  DATA_ACK_BIT_READ_ERROR = 72,
+  DATA_PARITY_WRONG = 73,
+};
 
 /**
  * @class Controller
@@ -56,7 +81,7 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() -> std::optional<Message>;
+  [[nodiscard]] auto readMessage() -> std::expected<Message, ReadError>;
   /**
    * Write a message to IEBus
    * @param message Message
