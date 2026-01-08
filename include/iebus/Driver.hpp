@@ -1,4 +1,4 @@
-// Copyright 2025 Pavel Suprunov
+// Copyright 2026 Pavel Suprunov
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
 #include <optional>
+
+#include <iebus/types.hpp>
 
 namespace iebus {
 
@@ -29,24 +29,6 @@ namespace iebus {
  * IEBus Driver
  */
 class Driver {
-public:
-  using Pin  = std::uint8_t;
-  using Data = std::uint16_t;
-  using Bit = std::uint8_t;
-  using Size = std::size_t;
-
-  enum class AckType : Bit {
-    ACK = 0,
-    NAK = 1,
-  };
-
-  enum class BitType : Bit {
-    BIT_0 = 0,
-    BIT_1 = 1,
-    BIT_START = 2,
-    BIN_UNKNOWN = 3,
-  };
-
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
 
@@ -138,11 +120,11 @@ private:
   /**
    * Wait before IEBus is change to low level
    */
-  auto waitBusLow() -> void;
+  auto waitBusLow() const -> void;
   /**
    * Wait before IEBus is change to high level
    */
-  auto waitBusHigh() -> void;
+  auto waitBusHigh() const -> void;
 
 private:
   Pin const m_rxPin;

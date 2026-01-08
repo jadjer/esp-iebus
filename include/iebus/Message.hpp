@@ -18,35 +18,23 @@
 
 #pragma once
 
-#include <array>
-#include <cstddef>
-#include <cstdint>
 #include <string>
+
+#include <iebus/types.hpp>
 
 namespace iebus {
 
-auto constexpr MAX_MESSAGE_SIZE = 256;
+class Message {
+public:
+  [[nodiscard]] [[maybe_unused]] auto toString() const -> std::string;
 
-using Bit     = std::uint8_t;
-using Byte    = std::uint8_t;
-using Size    = std::size_t;
-using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
-using Address = std::uint16_t;
-
-enum class BroadcastType : Bit {
-  BROADCAST  = 0,
-  FOR_DEVICE = 1,
-};
-
-struct Message {
+public:
   BroadcastType broadcast;
   Address master;
   Address slave;
   Byte control;
   Size dataLength;
   Bytes data;
-
-  [[nodiscard]] [[maybe_unused]] auto toString() const -> std::string;
 };
 
 } // namespace iebus

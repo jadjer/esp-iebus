@@ -1,4 +1,4 @@
-// Copyright 2025 Pavel Suprunov
+// Copyright 2026 Pavel Suprunov
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

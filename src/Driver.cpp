@@ -1,4 +1,4 @@
-// Copyright 2025 Pavel Suprunov
+// Copyright 2026 Pavel Suprunov
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <driver/gpio.h>
-#include <esp_log.h>
 
 #include "common.hpp"
 
@@ -40,7 +39,7 @@ auto constexpr DATA_BIT_0_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
 auto constexpr DATA_BIT_1_HIGH_US = 20;
 auto constexpr DATA_BIT_1_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
 
-auto detectBitType(Time const bitDuration) -> Driver::BitType {
+auto detectBitType(Time const bitDuration) -> BitType {
   auto const dStart = std::abs(bitDuration - START_BIT_HIGH_US);
   auto const d0     = std::abs(bitDuration - DATA_BIT_0_HIGH_US);
   auto const d1     = std::abs(bitDuration - DATA_BIT_1_HIGH_US);
@@ -48,23 +47,23 @@ auto detectBitType(Time const bitDuration) -> Driver::BitType {
   auto const minDiff = std::min({dStart, d0, d1});
 
   if (minDiff == dStart) {
-    return Driver::BitType::BIT_START;
+    return BitType::BIT_START;
   }
 
   if (minDiff == d0) {
-    return Driver::BitType::BIT_0;
+    return BitType::BIT_0;
   }
 
   if (minDiff == d1) {
-    return Driver::BitType::BIT_1;
+    return BitType::BIT_1;
   }
 
-  return Driver::BitType::BIN_UNKNOWN;
+  return BitType::BIN_UNKNOWN;
 }
 
 } // namespace
 
-Driver::Driver(Driver::Pin const rx, Driver::Pin const tx, Driver::Pin const enable) noexcept : m_rxPin(rx), m_txPin(tx), m_enablePin(enable) {
+Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(rx), m_txPin(tx), m_enablePin(enable) {
 
   gpio_config_t const receiverConfiguration = {
       .pin_bit_mask = (1ULL << m_rxPin),
@@ -146,7 +145,7 @@ auto Driver::readStartBit() -> bool {
   return false;
 }
 
-auto Driver::readBit() -> std::optional<Driver::Bit> {
+auto Driver::readBit() -> std::optional<Bit> {
   auto const bitType = readBitType();
 
   if (bitType == BitType::BIT_0) {
@@ -160,24 +159,24 @@ auto Driver::readBit() -> std::optional<Driver::Bit> {
   return std::nullopt;
 }
 
-auto Driver::readAckBit() -> std::optional<Driver::AckType> {
+auto Driver::readAckBit() -> std::optional<AckType> {
   auto const bitType = readBitType();
 
   if (bitType == BitType::BIT_0) {
-    return Driver::AckType::ACK;
+    return AckType::ACK;
   }
 
   if (bitType == BitType::BIT_1) {
-    return Driver::AckType::NAK;
+    return AckType::NAK;
   }
 
   return std::nullopt;
 }
 
-auto Driver::readBits(Driver::Size const numBits) -> std::optional<Driver::Data> {
-  Driver::Data result = 0;
+auto Driver::readBits(Size const numBits) -> std::optional<Data> {
+  Data result = 0;
 
-  for (Driver::Size i = 0; i < numBits; ++i) {
+  for (Size i = 0; i < numBits; ++i) {
     auto const optionalBit = readBit();
     if (not optionalBit) {
       return std::nullopt;
@@ -211,16 +210,16 @@ auto Driver::writeBit(Bit const bit) const -> void {
   delayUS(lowDuration);
 }
 
-auto Driver::writeAckBit(Driver::AckType const ack) const -> void {
-  if (ack == Driver::AckType::ACK) {
+auto Driver::writeAckBit(AckType const ack) const -> void {
+  if (ack == AckType::ACK) {
     return writeBit(0);
   }
 
   writeBit(1);
 }
 
-auto Driver::writeBits(Driver::Data const data, Driver::Size const numBits) const -> void {
-  for (Driver::Size i = 0; i < numBits; ++i) {
+auto Driver::writeBits(Data const data, Size const numBits) const -> void {
+  for (Size i = 0; i < numBits; ++i) {
     auto const bitPosition = numBits - 1 - i;
     auto const bit         = static_cast<Bit>(data >> bitPosition & 1);
 
@@ -228,7 +227,7 @@ auto Driver::writeBits(Driver::Data const data, Driver::Size const numBits) cons
   }
 }
 
-auto Driver::readBitType() -> Driver::BitType {
+auto Driver::readBitType() -> BitType {
   waitBusHigh();
 
   auto const startTime = getTimeUS();
@@ -242,13 +241,13 @@ auto Driver::readBitType() -> Driver::BitType {
   return bitType;
 }
 
-auto Driver::waitBusLow() -> void {
+auto Driver::waitBusLow() const -> void {
   while (isBusHigh()) {
     delayUS(1);
   }
 }
 
-auto Driver::waitBusHigh() -> void {
+auto Driver::waitBusHigh() const -> void {
   while (isBusLow()) {
     delayUS(1);
   }
