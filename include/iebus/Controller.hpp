@@ -39,11 +39,11 @@ public:
   /**
    * Enable IEBus driver
    */
-  auto enable() -> void;
+  auto enable() const -> void;
   /**
    * Enable IEBus driver
    */
-  auto disable() -> void;
+  auto disable() const -> void;
 
 public:
   /**
@@ -57,13 +57,13 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() -> std::expected<Message, MessageReadError>;
+  [[nodiscard]] auto readMessage() const -> std::expected<Message, MessageReadError>;
   /**
    * Write a message to IEBus
    * @param message Message
    * @return bool
    */
-  [[maybe_unused]] auto writeMessage(Message const& message) -> bool;
+  [[maybe_unused]] auto writeMessage(Message const& message) const -> bool;
 
 private:
   Address const m_address;

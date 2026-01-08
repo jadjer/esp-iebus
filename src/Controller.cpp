@@ -56,11 +56,11 @@ auto checkParity(Data const data, Size const size, Bit const parity) -> bool {
 Controller::Controller(Pin const rx, Pin const tx, Pin const enable, Address const address) noexcept : m_address(address), m_driver(rx, tx, enable) {
 }
 
-auto Controller::enable() -> void {
+auto Controller::enable() const -> void {
   m_driver.enable();
 }
 
-auto Controller::disable() -> void {
+auto Controller::disable() const -> void {
   m_driver.disable();
 }
 
@@ -68,7 +68,7 @@ auto Controller::isEnabled() const -> bool {
   return m_driver.isEnabled();
 }
 
-auto Controller::readMessage() -> std::expected<Message, MessageReadError> {
+auto Controller::readMessage() const -> std::expected<Message, MessageReadError> {
   if (not isEnabled()) {
     return std::unexpected(MessageReadError::CONTROLLER_DISABLED);
   }
@@ -279,7 +279,7 @@ auto Controller::readMessage() -> std::expected<Message, MessageReadError> {
   return message;
 }
 
-auto Controller::writeMessage(Message const& message) -> bool {
+auto Controller::writeMessage(Message const& message) const -> bool {
   if (not isEnabled()) {
     ESP_LOGE(TAG, "Controller is disabled");
     return false;

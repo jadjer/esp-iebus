@@ -67,7 +67,7 @@ enum class BitType : Bit {
   BIT_0       = 0,
   BIT_1       = 1,
   BIT_START   = 2,
-  BIN_UNKNOWN = 3,
+  BIT_UNKNOWN = 3,
 };
 
 enum class BroadcastType : Bit {

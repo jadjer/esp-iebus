@@ -58,7 +58,7 @@ auto detectBitType(Time const bitDuration) -> BitType {
     return BitType::BIT_1;
   }
 
-  return BitType::BIN_UNKNOWN;
+  return BitType::BIT_UNKNOWN;
 }
 
 } // namespace
@@ -85,7 +85,7 @@ Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(
 
   gpio_config_t const enableConfiguration = {
       .pin_bit_mask = (1ULL << m_enablePin),
-      .mode         = GPIO_MODE_OUTPUT,
+      .mode         = GPIO_MODE_INPUT_OUTPUT,
       .pull_up_en   = GPIO_PULLUP_DISABLE,
       .pull_down_en = GPIO_PULLDOWN_ENABLE,
       .intr_type    = GPIO_INTR_DISABLE,
@@ -94,7 +94,7 @@ Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(
 }
 
 auto Driver::isEnabled() const -> bool {
-  return m_isEnabled;
+  return gpio_get_level(static_cast<gpio_num_t>(m_enablePin));
 }
 
 auto Driver::isBusHigh() const -> bool {
@@ -114,8 +114,8 @@ auto Driver::isBusFree() const -> bool {
 
   while (isBusLow()) {
     auto const currentTime    = getTimeUS();
-    auto const timeDifference = currentTime - startTime;
-    if (timeDifference >= DATA_BIT_TOTAL_US) {
+    auto const differenceTime = currentTime - startTime;
+    if (differenceTime >= DATA_BIT_TOTAL_US) {
       return true;
     }
   }
@@ -123,19 +123,15 @@ auto Driver::isBusFree() const -> bool {
   return false;
 }
 
-auto Driver::enable() -> void {
-  m_isEnabled = true;
-
+auto Driver::enable() const -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), 1);
 }
 
-auto Driver::disable() -> void {
-  m_isEnabled = false;
-
+auto Driver::disable() const -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), 0);
 }
 
-auto Driver::readStartBit() -> bool {
+auto Driver::readStartBit() const -> bool {
   auto const bitType = readBitType();
 
   if (bitType == BitType::BIT_START) {
@@ -145,7 +141,7 @@ auto Driver::readStartBit() -> bool {
   return false;
 }
 
-auto Driver::readBit() -> std::optional<Bit> {
+auto Driver::readBit() const -> std::optional<Bit> {
   auto const bitType = readBitType();
 
   if (bitType == BitType::BIT_0) {
@@ -159,7 +155,7 @@ auto Driver::readBit() -> std::optional<Bit> {
   return std::nullopt;
 }
 
-auto Driver::readAckBit() -> std::optional<AckType> {
+auto Driver::readAckBit() const -> std::optional<AckType> {
   auto const bitType = readBitType();
 
   if (bitType == BitType::BIT_0) {
@@ -173,7 +169,7 @@ auto Driver::readAckBit() -> std::optional<AckType> {
   return std::nullopt;
 }
 
-auto Driver::readBits(Size const numBits) -> std::optional<Data> {
+auto Driver::readBits(Size const numBits) const -> std::optional<Data> {
   Data result = 0;
 
   for (Size i = 0; i < numBits; ++i) {
@@ -192,11 +188,14 @@ auto Driver::readBits(Size const numBits) -> std::optional<Data> {
 }
 
 auto Driver::writeStartBit() const -> void {
+  auto const highDuration = START_BIT_HIGH_US;
+  auto const lowDuration  = START_BIT_LOW_US;
+
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-  delayUS(START_BIT_HIGH_US);
+  delayUS(highDuration);
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
-  delayUS(START_BIT_LOW_US);
+  delayUS(lowDuration);
 }
 
 auto Driver::writeBit(Bit const bit) const -> void {
@@ -227,29 +226,27 @@ auto Driver::writeBits(Data const data, Size const numBits) const -> void {
   }
 }
 
-auto Driver::readBitType() -> BitType {
+auto Driver::readBitType() const -> BitType {
   waitBusHigh();
 
   auto const startTime = getTimeUS();
 
   waitBusLow();
 
-  auto const stopTime    = getTimeUS();
-  auto const bitDuration = stopTime - startTime;
-  auto const bitType     = detectBitType(bitDuration);
+  auto const stopTime      = getTimeUS();
+  auto const pulseDuration = stopTime - startTime;
+  auto const bitType       = detectBitType(pulseDuration);
 
   return bitType;
 }
 
 auto Driver::waitBusLow() const -> void {
   while (isBusHigh()) {
-    delayUS(1);
   }
 }
 
 auto Driver::waitBusHigh() const -> void {
   while (isBusLow()) {
-    delayUS(1);
   }
 }
 
