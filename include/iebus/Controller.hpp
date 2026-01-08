@@ -25,7 +25,7 @@
 
 namespace iebus {
 
-enum class ReadError : Bit {
+enum class MessageReadError : Bit {
   CONTROLLER_DISABLED = 0,
   START_BIT_READ_ERROR = 10,
   BROADCAST_BIT_READ_ERROR = 20,
@@ -81,7 +81,7 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() -> std::expected<Message, ReadError>;
+  [[nodiscard]] auto readMessage() -> std::expected<Message, MessageReadError>;
   /**
    * Write a message to IEBus
    * @param message Message
