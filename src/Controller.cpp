@@ -229,7 +229,11 @@ auto Controller::readMessage() -> std::expected<Message, MessageReadError> {
       m_driver.writeAckBit(AckType::ACK);
     }
 
-    message.dataLength = data;
+    if (data == 0) {
+      message.dataLength = 256;
+    } else {
+      message.dataLength = data;
+    }
   }
 
   for (Size i = 0; i < message.dataLength; i++) {

@@ -63,7 +63,7 @@ public:
    * @param message Message
    * @return bool
    */
-  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) -> bool;
+  [[maybe_unused]] auto writeMessage(Message const& message) -> bool;
 
 private:
   Address const m_address;
