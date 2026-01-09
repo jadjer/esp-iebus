@@ -39,6 +39,8 @@ auto constexpr DATA_BIT_0_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
 auto constexpr DATA_BIT_1_HIGH_US = 20;
 auto constexpr DATA_BIT_1_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
 
+auto constexpr BIT_THRESHOLD = 20;
+
 auto detectBitType(Time const bitDuration) -> BitType {
   auto const dStart = std::abs(bitDuration - START_BIT_HIGH_US);
   auto const d0     = std::abs(bitDuration - DATA_BIT_0_HIGH_US);
@@ -46,6 +48,10 @@ auto detectBitType(Time const bitDuration) -> BitType {
 
   auto const minDiff = std::min({dStart, d0, d1});
 
+  if (minDiff >= BIT_THRESHOLD) {
+    return BitType::BIN_UNKNOWN;
+  }
+  
   if (minDiff == dStart) {
     return BitType::BIT_START;
   }
