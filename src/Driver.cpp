@@ -49,7 +49,7 @@ auto detectBitType(Time const bitDuration) -> BitType {
   auto const minDiff = std::min({dStart, d0, d1});
 
   if (minDiff >= BIT_THRESHOLD) {
-    return BitType::BIN_UNKNOWN;
+    return BitType::BIT_UNKNOWN;
   }
   
   if (minDiff == dStart) {
