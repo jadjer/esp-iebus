@@ -20,9 +20,9 @@
 
 #include <cstdint>
 
-namespace iebus {
+#include <iebus/types.hpp>
 
-using Time = std::int64_t;
+namespace iebus {
 
 auto getTimeUS() -> Time;
 auto delayUS(Time delay) -> void;

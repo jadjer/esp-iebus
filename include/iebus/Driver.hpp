@@ -120,11 +120,11 @@ public:
   /**
    * Wait before IEBus is change to low level
    */
-  auto waitBusLow() const -> void;
+  [[nodiscard]] auto waitBusLow(Time timeout) const -> bool;
   /**
    * Wait before IEBus is change to high level
    */
-  auto waitBusHigh() const -> void;
+  [[nodiscard]] auto waitBusHigh(Time timeout) const -> bool;
 
 private:
   Pin const m_rxPin;

@@ -20,12 +20,11 @@
 
 #include <expected>
 
-#include <iebus/types.hpp>
 #include <iebus/Driver.hpp>
+#include <iebus/Message.hpp>
+#include <iebus/types.hpp>
 
 namespace iebus {
-
-class Message;
 
 /**
  * @class Controller
@@ -34,6 +33,7 @@ class Message;
 class Controller {
 public:
   Controller(Pin rx, Pin tx, Pin enable, Address address) noexcept;
+  virtual ~Controller() noexcept = default;
 
 public:
   /**
@@ -63,7 +63,7 @@ public:
    * @param message Message
    * @return bool
    */
-  [[maybe_unused]] auto writeMessage(Message const& message) const -> bool;
+  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const -> bool;
 
 private:
   Address const m_address;

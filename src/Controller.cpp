@@ -64,6 +64,8 @@ auto Controller::disable() const -> void {
   m_driver.disable();
 }
 
+
+
 auto Controller::isEnabled() const -> bool {
   return m_driver.isEnabled();
 }
@@ -104,12 +106,12 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
     auto const data      = optionalData.value();
     auto const parityBit = optionalParityBit.value();
 
+    message.master = data;
+
     auto const isParityValid = checkParity(data, MASTER_ADDRESS_BIT_SIZE, parityBit);
     if (not isParityValid) {
       return std::unexpected(MessageReadError::MASTER_ADDRESS_PARITY_WRONG);
     }
-
-    message.master = data;
   }
 
   {
@@ -128,9 +130,12 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
       return std::unexpected(MessageReadError::SLAVE_ADDRESS_ACK_BIT_READ_ERROR);
     }
 
-    auto const data            = optionalData.value();
-    auto const parityBit       = optionalParityBit.value();
-    auto const ackBit          = optionalAckBit.value();
+    auto const data      = optionalData.value();
+    auto const parityBit = optionalParityBit.value();
+    auto const ackBit    = optionalAckBit.value();
+
+    message.slave = data;
+
     auto const isParityValid   = checkParity(data, SLAVE_ADDRESS_BIT_SIZE, parityBit);
     auto const isNeedAnswer    = ackBit == AckType::ACK;
     auto const isForDevice     = message.broadcast == BroadcastType::FOR_DEVICE;
@@ -148,8 +153,6 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
     if (isAnswer) {
       m_driver.writeAckBit(AckType::ACK);
     }
-
-    message.slave = data;
   }
 
   {
@@ -168,9 +171,12 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
       return std::unexpected(MessageReadError::CONTROL_ACK_BIT_READ_ERROR);
     }
 
-    auto const data            = optionalData.value();
-    auto const parityBit       = optionalParityBit.value();
-    auto const ackBit          = optionalAckBit.value();
+    auto const data      = optionalData.value();
+    auto const parityBit = optionalParityBit.value();
+    auto const ackBit    = optionalAckBit.value();
+
+    message.control = data;
+
     auto const isParityValid   = checkParity(data, CONTROL_BIT_SIZE, parityBit);
     auto const isNeedAnswer    = ackBit == AckType::ACK;
     auto const isForDevice     = message.broadcast == BroadcastType::FOR_DEVICE;
@@ -188,8 +194,6 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
     if (isAnswer) {
       m_driver.writeAckBit(AckType::ACK);
     }
-
-    message.control = data;
   }
 
   {
@@ -208,9 +212,16 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
       return std::unexpected(MessageReadError::LENGTH_ACK_BIT_READ_ERROR);
     }
 
-    auto const data            = optionalData.value();
-    auto const parityBit       = optionalParityBit.value();
-    auto const ackBit          = optionalAckBit.value();
+    auto const data      = optionalData.value();
+    auto const parityBit = optionalParityBit.value();
+    auto const ackBit    = optionalAckBit.value();
+
+    if (data == 0) {
+      message.dataLength = 256;
+    } else {
+      message.dataLength = data;
+    }
+
     auto const isParityValid   = checkParity(data, DATA_LENGTH_BIT_SIZE, parityBit);
     auto const isNeedAnswer    = ackBit == AckType::ACK;
     auto const isForDevice     = message.broadcast == BroadcastType::FOR_DEVICE;
@@ -227,12 +238,6 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
 
     if (isAnswer) {
       m_driver.writeAckBit(AckType::ACK);
-    }
-
-    if (data == 0) {
-      message.dataLength = 256;
-    } else {
-      message.dataLength = data;
     }
   }
 
@@ -252,9 +257,12 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
       return std::unexpected(MessageReadError::DATA_ACK_BIT_READ_ERROR);
     }
 
-    auto const data            = optionalData.value();
-    auto const parityBit       = optionalParityBit.value();
-    auto const ackBit          = optionalAckBit.value();
+    auto const data      = optionalData.value();
+    auto const parityBit = optionalParityBit.value();
+    auto const ackBit    = optionalAckBit.value();
+
+    message.data[i] = data;
+
     auto const isParityValid   = checkParity(data, DATA_BIT_SIZE, parityBit);
     auto const isNeedAnswer    = ackBit == AckType::ACK;
     auto const isForDevice     = message.broadcast == BroadcastType::FOR_DEVICE;
@@ -272,8 +280,6 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
     if (isAnswer) {
       m_driver.writeAckBit(AckType::ACK);
     }
-
-    message.data[i] = data;
   }
 
   return message;

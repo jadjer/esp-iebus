@@ -51,7 +51,7 @@ auto detectBitType(Time const bitDuration) -> BitType {
   if (minDiff >= BIT_THRESHOLD) {
     return BitType::BIT_UNKNOWN;
   }
-  
+
   if (minDiff == dStart) {
     return BitType::BIT_START;
   }
@@ -233,11 +233,17 @@ auto Driver::writeBits(Data const data, Size const numBits) const -> void {
 }
 
 auto Driver::readBitType() const -> BitType {
-  waitBusHigh();
+  auto const isWaitBusHighSuccess = waitBusHigh(1000);
+  if (not isWaitBusHighSuccess) {
+    return BitType::BIT_UNKNOWN;
+  }
 
   auto const startTime = getTimeUS();
 
-  waitBusLow();
+  auto const isWaitBusLowSuccess = waitBusLow(500);
+  if (not isWaitBusLowSuccess) {
+    return BitType::BIT_UNKNOWN;
+  }
 
   auto const stopTime      = getTimeUS();
   auto const pulseDuration = stopTime - startTime;
@@ -246,14 +252,34 @@ auto Driver::readBitType() const -> BitType {
   return bitType;
 }
 
-auto Driver::waitBusLow() const -> void {
+auto Driver::waitBusLow(Time const timeout) const -> bool {
+  auto const startTime = getTimeUS();
+
   while (isBusHigh()) {
+    auto const currentTime    = getTimeUS();
+    auto const differenceTime = currentTime - startTime;
+
+    if (differenceTime > timeout) {
+      return false;
+    }
   }
+
+  return true;
 }
 
-auto Driver::waitBusHigh() const -> void {
+auto Driver::waitBusHigh(Time const timeout) const -> bool {
+  auto const startTime = getTimeUS();
+
   while (isBusLow()) {
+    auto const currentTime    = getTimeUS();
+    auto const differenceTime = currentTime - startTime;
+
+    if (differenceTime > timeout) {
+      return false;
+    }
   }
+
+  return true;
 }
 
 } // namespace iebus

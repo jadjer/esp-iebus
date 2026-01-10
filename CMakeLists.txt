@@ -10,6 +10,7 @@ set(SOURCES
         src/Driver.cpp
         src/Message.cpp
         src/Controller.cpp
+        src/ControllerThread.cpp
 )
 
 set(REQUIRES)
