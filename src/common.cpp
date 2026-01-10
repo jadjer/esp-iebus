@@ -18,21 +18,17 @@
 
 #include "common.hpp"
 
-#include <chrono>
-#include <thread>
+#include <esp_timer.h>
+#include <esp_rom_sys.h>
 
 namespace iebus {
 
 auto getTimeUS() -> Time {
-  auto const now      = std::chrono::system_clock::now();
-  auto const duration = now.time_since_epoch();
-  auto const micros   = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
-
-  return micros;
+  return esp_timer_get_time();
 }
 
 auto delayUS(Time const delay) -> void {
-  std::this_thread::sleep_for(std::chrono::microseconds(delay));
+  esp_rom_delay_us(delay);
 }
 
 } // namespace iebus
