@@ -109,14 +109,14 @@ public:
    */
   auto writeBits(Data data, Size numBits) const -> void;
 
-private:
+public:
   /**
    * Read bit type
    * @return Bit type
    */
   [[nodiscard]] auto readBitType() const -> BitType;
 
-private:
+public:
   /**
    * Wait before IEBus is change to low level
    */
