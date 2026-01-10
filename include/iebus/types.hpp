@@ -21,6 +21,9 @@
 #include <array>
 #include <cstdint>
 
+/**
+ * @namespace iebus
+ */
 namespace iebus {
 
 auto constexpr MAX_MESSAGE_SIZE = 256;

@@ -22,9 +22,20 @@
 
 #include <iebus/types.hpp>
 
+/**
+ * @namespace iebus
+ */
 namespace iebus {
 
+/**
+ * Get current time in microseconds
+ * @return Time
+ */
 auto getTimeUS() -> Time;
+/**
+ * Delay for microseconds
+ * @param delay Microseconds
+ */
 auto delayUS(Time delay) -> void;
 
 } // namespace iebus

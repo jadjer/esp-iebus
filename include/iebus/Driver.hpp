@@ -22,6 +22,9 @@
 
 #include <iebus/types.hpp>
 
+/**
+ * @namespace iebus
+ */
 namespace iebus {
 
 /**

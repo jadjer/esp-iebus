@@ -22,8 +22,14 @@
 
 #include <iebus/types.hpp>
 
+/**
+ * @namespace iebus
+ */
 namespace iebus {
 
+/**
+ * @class Message
+ */
 class Message {
 public:
   [[nodiscard]] [[maybe_unused]] auto toString() const -> std::string;

@@ -27,8 +27,15 @@
 #include <queue>
 #include <thread>
 
+/**
+ * @namespace iebus
+ */
 namespace iebus {
 
+/**
+ * @class ControllerThread
+ * Thread for IEBus Controller
+ */
 class ControllerThread : public Controller {
 private:
   using CV     = std::condition_variable;
@@ -42,7 +49,13 @@ public:
   ~ControllerThread() noexcept override = default;
 
 public:
+  /**
+   * Start thread
+   */
   auto start() -> void;
+  /**
+   * Stop thread
+   */
   auto stop() -> void;
 
 public:
