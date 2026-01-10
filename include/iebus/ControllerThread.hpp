@@ -25,13 +25,12 @@
 #include <optional>
 #include <queue>
 #include <thread>
-#include <condition_variable>
 
 namespace iebus {
 
 class ControllerThread : public Controller {
 private:
-  using CV = std::condition_variable;
+  using CV     = std::condition_variable;
   using Mutex  = std::mutex;
   using Queue  = std::queue<Message>;
   using Thread = std::thread;

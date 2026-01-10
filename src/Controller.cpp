@@ -64,8 +64,6 @@ auto Controller::disable() const -> void {
   m_driver.disable();
 }
 
-
-
 auto Controller::isEnabled() const -> bool {
   return m_driver.isEnabled();
 }
