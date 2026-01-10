@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <condition_variable>
 #include <iebus/Controller.hpp>
 #include <iebus/Message.hpp>
@@ -31,6 +32,7 @@ namespace iebus {
 class ControllerThread : public Controller {
 private:
   using CV     = std::condition_variable;
+  using Bool   = std::atomic<bool>;
   using Mutex  = std::mutex;
   using Queue  = std::queue<Message>;
   using Thread = std::thread;
@@ -72,10 +74,10 @@ private:
 
 private:
   CV m_cv;
-  Mutex m_mutex;
   Queue m_queue;
   Thread m_thread;
-  bool m_threadEnable = false;
+  Bool m_threadEnable = false;
+  mutable Mutex m_mutex;
 };
 
 } // namespace iebus
