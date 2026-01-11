@@ -30,16 +30,16 @@ namespace {
 auto constexpr TAG = "IEBusDriver";
 
 auto constexpr START_BIT_TOTAL_US = 190;
-auto constexpr START_BIT_HIGH_US  = 171;
+auto constexpr START_BIT_HIGH_US  = 170;
 auto constexpr START_BIT_LOW_US   = START_BIT_TOTAL_US - START_BIT_HIGH_US;
 
-auto constexpr DATA_BIT_TOTAL_US  = 39;
-auto constexpr DATA_BIT_0_HIGH_US = 33;
+auto constexpr DATA_BIT_TOTAL_US  = 40;
+auto constexpr DATA_BIT_0_HIGH_US = 35;
 auto constexpr DATA_BIT_0_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
 auto constexpr DATA_BIT_1_HIGH_US = 20;
 auto constexpr DATA_BIT_1_LOW_US  = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
 
-auto constexpr BIT_THRESHOLD = 20;
+auto constexpr WAIT_BUS_TIMEOUT_US = 1000;
 
 auto detectBitType(Time const bitDuration) -> BitType {
   auto const dStart = std::abs(bitDuration - START_BIT_HIGH_US);
@@ -47,10 +47,6 @@ auto detectBitType(Time const bitDuration) -> BitType {
   auto const d1     = std::abs(bitDuration - DATA_BIT_1_HIGH_US);
 
   auto const minDiff = std::min({dStart, d0, d1});
-
-  if (minDiff >= BIT_THRESHOLD) {
-    return BitType::BIT_UNKNOWN;
-  }
 
   if (minDiff == dStart) {
     return BitType::BIT_START;
@@ -70,12 +66,11 @@ auto detectBitType(Time const bitDuration) -> BitType {
 } // namespace
 
 Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(rx), m_txPin(tx), m_enablePin(enable) {
-
   gpio_config_t const receiverConfiguration = {
       .pin_bit_mask = (1ULL << m_rxPin),
       .mode         = GPIO_MODE_INPUT,
       .pull_up_en   = GPIO_PULLUP_DISABLE,
-      .pull_down_en = GPIO_PULLDOWN_DISABLE,
+      .pull_down_en = GPIO_PULLDOWN_ENABLE,
       .intr_type    = GPIO_INTR_DISABLE,
   };
   gpio_config(&receiverConfiguration);
@@ -193,7 +188,7 @@ auto Driver::readBits(Size const numBits) const -> std::optional<Data> {
   return result;
 }
 
-auto Driver::writeStartBit() const -> void {
+auto Driver::writeStartBit() const -> bool {
   auto const highDuration = START_BIT_HIGH_US;
   auto const lowDuration  = START_BIT_LOW_US;
 
@@ -202,6 +197,12 @@ auto Driver::writeStartBit() const -> void {
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
   delayUS(lowDuration);
+
+  if (isBusHigh()) {
+    return false;
+  }
+
+  return true;
 }
 
 auto Driver::writeBit(Bit const bit) const -> void {
@@ -233,14 +234,14 @@ auto Driver::writeBits(Data const data, Size const numBits) const -> void {
 }
 
 auto Driver::readBitType() const -> BitType {
-  auto const isWaitBusHighSuccess = waitBusHigh(1000);
+  auto const isWaitBusHighSuccess = waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusLow(); });
   if (not isWaitBusHighSuccess) {
     return BitType::BIT_UNKNOWN;
   }
 
   auto const startTime = getTimeUS();
 
-  auto const isWaitBusLowSuccess = waitBusLow(1000);
+  auto const isWaitBusLowSuccess = waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusHigh(); });
   if (not isWaitBusLowSuccess) {
     return BitType::BIT_UNKNOWN;
   }
@@ -250,14 +251,6 @@ auto Driver::readBitType() const -> BitType {
   auto const bitType       = detectBitType(pulseDuration);
 
   return bitType;
-}
-
-auto Driver::waitBusLow(Time const timeout) const -> bool {
-  return waitUntil(timeout, [&] { return isBusHigh(); });
-}
-
-auto Driver::waitBusHigh(Time const timeout) const -> bool {
-  return waitUntil(timeout, [&] { return isBusLow(); });
 }
 
 template <typename Predicate> auto Driver::waitUntil(Time const timeout, Predicate const predicate) const -> bool {

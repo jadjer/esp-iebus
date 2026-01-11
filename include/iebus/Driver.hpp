@@ -94,7 +94,7 @@ public:
    * Get start bit from IEBus
    * @return
    */
-  auto writeStartBit() const -> void;
+  [[nodiscard]] auto writeStartBit() const -> bool;
   /**
    * Send bit to IEBus
    * @param bit single bit data
@@ -120,14 +120,6 @@ public:
   [[nodiscard]] auto readBitType() const -> BitType;
 
 public:
-  /**
-   * Wait before IEBus is change to low level
-   */
-  [[nodiscard]] auto waitBusLow(Time timeout) const -> bool;
-  /**
-   * Wait before IEBus is change to high level
-   */
-  [[nodiscard]] auto waitBusHigh(Time timeout) const -> bool;
   /**
    * Wait before IEBus is change
    * @tparam Predicate

@@ -39,7 +39,7 @@ public:
   Address master;
   Address slave;
   Byte control;
-  Size dataLength;
+  Size length;
   Bytes data;
 };
 

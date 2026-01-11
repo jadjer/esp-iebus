@@ -56,6 +56,9 @@ public:
   [[nodiscard]] auto isEnabled() const -> bool;
 
 public:
+  [[nodiscard]] auto registerOnMaster() const -> bool;
+
+public:
   /**
    * Read the message from IEBus
    * @return Optional message
@@ -66,7 +69,7 @@ public:
    * @param message Message
    * @return bool
    */
-  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const -> bool;
+  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const -> std::expected<bool, MessageError>;
 
 private:
   Address const m_address;

@@ -52,7 +52,7 @@ auto formatBytesHex(Bytes const bytes, Size const byteSize) -> std::string {
 } // namespace
 
 auto Message::toString() const -> std::string {
-  return std::format("{} {:3X} {:3X} {:1X} [{}]", formatBroadcastType(broadcast), master, slave, control, formatBytesHex(data, dataLength));
+  return std::format("{} {:3X} {:3X} {:1X} [{}]", formatBroadcastType(broadcast), master, slave, control, formatBytesHex(data, length));
 }
 
 } // namespace iebus
