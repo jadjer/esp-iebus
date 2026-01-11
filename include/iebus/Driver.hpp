@@ -128,6 +128,14 @@ public:
    * Wait before IEBus is change to high level
    */
   [[nodiscard]] auto waitBusHigh(Time timeout) const -> bool;
+  /**
+   * Wait before IEBus is change
+   * @tparam Predicate
+   * @param timeout
+   * @param predicate
+   * @return bool
+   */
+  template <typename Predicate> auto waitUntil(Time timeout, Predicate predicate) const -> bool;
 
 private:
   Pin const m_rxPin;

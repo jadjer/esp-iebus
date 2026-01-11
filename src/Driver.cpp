@@ -253,24 +253,17 @@ auto Driver::readBitType() const -> BitType {
 }
 
 auto Driver::waitBusLow(Time const timeout) const -> bool {
-  auto const startTime = getTimeUS();
-
-  while (isBusHigh()) {
-    auto const currentTime    = getTimeUS();
-    auto const differenceTime = currentTime - startTime;
-
-    if (differenceTime > timeout) {
-      return false;
-    }
-  }
-
-  return true;
+  return waitUntil(timeout, [&] { return isBusHigh(); });
 }
 
 auto Driver::waitBusHigh(Time const timeout) const -> bool {
+  return waitUntil(timeout, [&] { return isBusLow(); });
+}
+
+template <typename Predicate> auto Driver::waitUntil(Time const timeout, Predicate const predicate) const -> bool {
   auto const startTime = getTimeUS();
 
-  while (isBusLow()) {
+  while (predicate()) {
     auto const currentTime    = getTimeUS();
     auto const differenceTime = currentTime - startTime;
 
