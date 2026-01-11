@@ -37,7 +37,7 @@ using Time    = std::int64_t;
 using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
 using Address = std::uint16_t;
 
-enum class MessageReadError : Bit {
+enum class MessageError : Bit {
   CONTROLLER_DISABLED                  = 0,
   START_BIT_READ_ERROR                 = 10,
   BROADCAST_BIT_READ_ERROR             = 20,

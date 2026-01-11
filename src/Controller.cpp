@@ -68,13 +68,13 @@ auto Controller::isEnabled() const -> bool {
   return m_driver.isEnabled();
 }
 
-auto Controller::readMessage() const -> std::expected<Message, MessageReadError> {
+auto Controller::readMessage() const -> std::expected<Message, MessageError> {
   if (not isEnabled()) {
-    return std::unexpected(MessageReadError::CONTROLLER_DISABLED);
+    return std::unexpected(MessageError::CONTROLLER_DISABLED);
   }
 
   if (not m_driver.readStartBit()) {
-    return std::unexpected(MessageReadError::START_BIT_READ_ERROR);
+    return std::unexpected(MessageError::START_BIT_READ_ERROR);
   }
 
   Message message = {};
@@ -82,7 +82,7 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
   {
     auto const optionalBroadcastBit = m_driver.readBit();
     if (not optionalBroadcastBit) {
-      return std::unexpected(MessageReadError::BROADCAST_BIT_READ_ERROR);
+      return std::unexpected(MessageError::BROADCAST_BIT_READ_ERROR);
     }
 
     auto const broadcastBit = optionalBroadcastBit.value();
@@ -93,12 +93,12 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
   {
     auto const optionalData = m_driver.readBits(MASTER_ADDRESS_BIT_SIZE);
     if (not optionalData) {
-      return std::unexpected(MessageReadError::MASTER_ADDRESS_DATA_READ_ERROR);
+      return std::unexpected(MessageError::MASTER_ADDRESS_DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      return std::unexpected(MessageReadError::MASTER_ADDRESS_PARITY_BIT_READ_ERROR);
+      return std::unexpected(MessageError::MASTER_ADDRESS_PARITY_BIT_READ_ERROR);
     }
 
     auto const data      = optionalData.value();
@@ -108,24 +108,24 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
 
     auto const isParityValid = checkParity(data, MASTER_ADDRESS_BIT_SIZE, parityBit);
     if (not isParityValid) {
-      return std::unexpected(MessageReadError::MASTER_ADDRESS_PARITY_WRONG);
+      return std::unexpected(MessageError::MASTER_ADDRESS_PARITY_WRONG);
     }
   }
 
   {
     auto const optionalData = m_driver.readBits(SLAVE_ADDRESS_BIT_SIZE);
     if (not optionalData) {
-      return std::unexpected(MessageReadError::SLAVE_ADDRESS_DATA_READ_ERROR);
+      return std::unexpected(MessageError::SLAVE_ADDRESS_DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      return std::unexpected(MessageReadError::SLAVE_ADDRESS_PARITY_BIT_READ_ERROR);
+      return std::unexpected(MessageError::SLAVE_ADDRESS_PARITY_BIT_READ_ERROR);
     }
 
     auto const optionalAckBit = m_driver.readAckBit();
     if (not optionalAckBit) {
-      return std::unexpected(MessageReadError::SLAVE_ADDRESS_ACK_BIT_READ_ERROR);
+      return std::unexpected(MessageError::SLAVE_ADDRESS_ACK_BIT_READ_ERROR);
     }
 
     auto const data      = optionalData.value();
@@ -145,7 +145,7 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
         m_driver.writeAckBit(AckType::NAK);
       }
 
-      return std::unexpected(MessageReadError::SLAVE_ADDRESS_PARITY_WRONG);
+      return std::unexpected(MessageError::SLAVE_ADDRESS_PARITY_WRONG);
     }
 
     if (isAnswer) {
@@ -156,17 +156,17 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
   {
     auto const optionalData = m_driver.readBits(CONTROL_BIT_SIZE);
     if (not optionalData) {
-      return std::unexpected(MessageReadError::CONTROL_DATA_READ_ERROR);
+      return std::unexpected(MessageError::CONTROL_DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      return std::unexpected(MessageReadError::CONTROL_PARITY_BIT_READ_ERROR);
+      return std::unexpected(MessageError::CONTROL_PARITY_BIT_READ_ERROR);
     }
 
     auto const optionalAckBit = m_driver.readAckBit();
     if (not optionalAckBit) {
-      return std::unexpected(MessageReadError::CONTROL_ACK_BIT_READ_ERROR);
+      return std::unexpected(MessageError::CONTROL_ACK_BIT_READ_ERROR);
     }
 
     auto const data      = optionalData.value();
@@ -186,7 +186,7 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
         m_driver.writeAckBit(AckType::NAK);
       }
 
-      return std::unexpected(MessageReadError::CONTROL_PARITY_WRONG);
+      return std::unexpected(MessageError::CONTROL_PARITY_WRONG);
     }
 
     if (isAnswer) {
@@ -197,17 +197,17 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
   {
     auto const optionalData = m_driver.readBits(DATA_LENGTH_BIT_SIZE);
     if (not optionalData) {
-      return std::unexpected(MessageReadError::LENGTH_DATA_READ_ERROR);
+      return std::unexpected(MessageError::LENGTH_DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      return std::unexpected(MessageReadError::LENGTH_PARITY_BIT_READ_ERROR);
+      return std::unexpected(MessageError::LENGTH_PARITY_BIT_READ_ERROR);
     }
 
     auto const optionalAckBit = m_driver.readAckBit();
     if (not optionalAckBit) {
-      return std::unexpected(MessageReadError::LENGTH_ACK_BIT_READ_ERROR);
+      return std::unexpected(MessageError::LENGTH_ACK_BIT_READ_ERROR);
     }
 
     auto const data      = optionalData.value();
@@ -231,7 +231,7 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
         m_driver.writeAckBit(AckType::NAK);
       }
 
-      return std::unexpected(MessageReadError::LENGTH_PARITY_WRONG);
+      return std::unexpected(MessageError::LENGTH_PARITY_WRONG);
     }
 
     if (isAnswer) {
@@ -242,17 +242,17 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
   for (Size i = 0; i < message.dataLength; i++) {
     auto const optionalData = m_driver.readBits(DATA_BIT_SIZE);
     if (not optionalData) {
-      return std::unexpected(MessageReadError::DATA_READ_ERROR);
+      return std::unexpected(MessageError::DATA_READ_ERROR);
     }
 
     auto const optionalParityBit = m_driver.readBit();
     if (not optionalParityBit) {
-      return std::unexpected(MessageReadError::DATA_PARITY_BIT_READ_ERROR);
+      return std::unexpected(MessageError::DATA_PARITY_BIT_READ_ERROR);
     }
 
     auto const optionalAckBit = m_driver.readAckBit();
     if (not optionalAckBit) {
-      return std::unexpected(MessageReadError::DATA_ACK_BIT_READ_ERROR);
+      return std::unexpected(MessageError::DATA_ACK_BIT_READ_ERROR);
     }
 
     auto const data      = optionalData.value();
@@ -272,7 +272,7 @@ auto Controller::readMessage() const -> std::expected<Message, MessageReadError>
         m_driver.writeAckBit(AckType::NAK);
       }
 
-      return std::unexpected(MessageReadError::DATA_PARITY_WRONG);
+      return std::unexpected(MessageError::DATA_PARITY_WRONG);
     }
 
     if (isAnswer) {

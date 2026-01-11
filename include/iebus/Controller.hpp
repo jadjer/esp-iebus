@@ -60,7 +60,7 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() const -> std::expected<Message, MessageReadError>;
+  [[nodiscard]] auto readMessage() const -> std::expected<Message, MessageError>;
   /**
    * Write a message to IEBus
    * @param message Message
