@@ -77,7 +77,16 @@ auto Controller::readMessage() const -> std::expected<Message, MessageError> {
     return std::unexpected(MessageError::START_BIT_READ_ERROR);
   }
 
-  Message message = {};
+  Message message = {
+//      .broadcast = BroadcastType::FOR_DEVICE,
+//      .master     = 0x100,
+//      .slave      = 0x140,
+//      .control    = 0xF,
+//      .dataLength = 8,
+//      .data       = {0x1F, 0x3D, 0x11, 0x3, 0x4E, 0x3, 0x3, 0x3},
+  };
+
+//  return message;
 
   {
     auto const optionalBroadcastBit = m_driver.readBit();

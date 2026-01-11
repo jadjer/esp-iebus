@@ -240,7 +240,7 @@ auto Driver::readBitType() const -> BitType {
 
   auto const startTime = getTimeUS();
 
-  auto const isWaitBusLowSuccess = waitBusLow(500);
+  auto const isWaitBusLowSuccess = waitBusLow(1000);
   if (not isWaitBusLowSuccess) {
     return BitType::BIT_UNKNOWN;
   }
