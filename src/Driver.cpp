@@ -41,7 +41,7 @@ auto constexpr DATA_BIT_1_TOTAL_US = 38;
 auto constexpr DATA_BIT_1_HIGH_US  = 20;
 auto constexpr DATA_BIT_1_LOW_US   = DATA_BIT_1_TOTAL_US - DATA_BIT_1_HIGH_US;
 
-auto constexpr BIT_THRESHOLD = 10;
+auto constexpr BIT_THRESHOLD_US = 20;
 
 auto constexpr WAIT_BUS_TIMEOUT_US = 10000;
 
@@ -52,9 +52,9 @@ auto decodeBitType(Time const pulseWidth) -> BitType {
 
   auto const minDiff = std::min({dStart, d0, d1});
 
-//  if (minDiff >= BIT_THRESHOLD) {
-//    return BitType::BIT_UNKNOWN;
-//  }
+  if (minDiff >= BIT_THRESHOLD_US) {
+    return BitType::BIT_UNKNOWN;
+  }
 
   if (minDiff == dStart) {
     return BitType::BIT_START;
@@ -134,67 +134,70 @@ auto Driver::disable() const noexcept -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), 0);
 }
 
-auto Driver::readStartBit() const noexcept -> std::expected<bool, BitResult> {
-  auto const bitResult = readBitResult();
+auto Driver::readStartBit() const noexcept -> bool {
+  auto const bitType = captureBitType();
 
-  if (bitResult.bitType == BitType::BIT_START) {
+  if (bitType == BitType::BIT_START) {
     return true;
   }
 
-  return std::unexpected(bitResult);
+  return false;
 }
 
-auto Driver::readBit() const noexcept -> std::expected<Bit, BitResult> {
-  auto const bitResult = readBitResult();
+auto Driver::readBit() const noexcept -> std::optional<Bit> {
+  auto const bitType = captureBitType();
 
-  if (bitResult.bitType == BitType::BIT_0) {
+  if (bitType == BitType::BIT_0) {
     return 0;
   }
 
-  if (bitResult.bitType == BitType::BIT_1) {
+  if (bitType == BitType::BIT_1) {
     return 1;
   }
 
-  return std::unexpected(bitResult);
+  return std::nullopt;
 }
 
-auto Driver::readAckBit() const noexcept -> std::expected<AckType, BitResult> {
-  auto const bitResult = readBitResult();
+auto Driver::readAckBit() const noexcept -> std::optional<AckType> {
+  auto const bitType = captureBitType();
 
-  if (bitResult.bitType == BitType::BIT_0) {
+  if (bitType == BitType::BIT_0) {
     return AckType::ACK;
   }
 
-  if (bitResult.bitType == BitType::BIT_1) {
+  if (bitType == BitType::BIT_1) {
     return AckType::NAK;
   }
 
-  return std::unexpected(bitResult);
+  return std::nullopt;
 }
 
-auto Driver::readBits(Size const numBits) const noexcept -> std::expected<Data, BitResult> {
+auto Driver::readBits(Size const numBits) const noexcept -> std::optional<Data> {
   Data result = 0;
 
   for (Size i = 0; i < numBits; ++i) {
-    auto const bit = readBit();
-    if (not bit) {
-      return std::unexpected(bit.error());
+    auto const optionalBit = readBit();
+    if (not optionalBit) {
+      return std::nullopt;
     }
 
-    result = (result << 1) | static_cast<Bit>(*bit);
+    auto const bit = optionalBit.value();
+
+    result = (result << 1) | static_cast<Bit>(bit);
   }
 
   return result;
 }
 
-auto Driver::writeStartBit() const noexcept -> bool {
+auto Driver::writeStartBit() const noexcept -> void {
+  auto const highDuration = START_BIT_HIGH_US;
+  auto const lowDuration  = START_BIT_LOW_US;
+
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-  delayUS(START_BIT_HIGH_US);
+  delayUS(highDuration);
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
-  delayUS(START_BIT_LOW_US);
-
-  return isBusLow();
+  delayUS(lowDuration);
 }
 
 auto Driver::writeBit(Bit const bit) const noexcept -> void {
@@ -225,36 +228,26 @@ auto Driver::writeBits(Data const data, Size const numBits) const noexcept -> vo
   }
 }
 
-auto Driver::readBitResult() const noexcept -> BitResult {
-  auto const pulseWidth = readPulseWidth();
+auto Driver::captureBitType() const noexcept -> BitType {
+  auto const pulseWidth = capturePulseWidth();
   auto const bitType    = decodeBitType(pulseWidth);
 
-  BitResult const bitResult = {
-      .pulseWidth = pulseWidth,
-      .bitType    = bitType,
-  };
-
-  return bitResult;
+  return bitType;
 }
 
-auto Driver::readPulseWidth() const noexcept -> Time {
+auto Driver::capturePulseWidth() const noexcept -> Time {
   if (not waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusLow(); })) {
     return 0;
   }
 
-  auto const startPulseTime = getTimeUS();
+  auto const startTime = getTimeUS();
 
   if (not waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusHigh(); })) {
     return 0;
   }
 
-  auto const stopPulseTime = getTimeUS();
-
-  if (startPulseTime >= stopPulseTime) {
-    return 0;
-  }
-
-  auto const pulseWidth = stopPulseTime - startPulseTime;
+  auto const stopTime   = getTimeUS();
+  auto const pulseWidth = stopTime - startTime;
 
   return pulseWidth;
 }
@@ -263,12 +256,7 @@ template <typename Predicate> auto Driver::waitUntil(Time const timeout, Predica
   auto const startTime = getTimeUS();
 
   while (predicate()) {
-    auto const currentTime = getTimeUS();
-
-    if (startTime >= currentTime) {
-      continue;
-    }
-
+    auto const currentTime    = getTimeUS();
     auto const differenceTime = currentTime - startTime;
 
     if (differenceTime > timeout) {

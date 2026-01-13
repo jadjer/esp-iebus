@@ -30,11 +30,9 @@ namespace iebus {
 /**
  * @class Message
  */
-class Message {
-public:
+struct Message {
   [[nodiscard]] [[maybe_unused]] auto toString() const -> std::string;
 
-public:
   BroadcastType broadcast;
   Address master;
   Address slave;

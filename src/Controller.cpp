@@ -18,9 +18,6 @@
 
 #include "iebus/Controller.hpp"
 
-#include <esp_log.h>
-#include <utility>
-
 #include "common.hpp"
 #include "iebus/Message.hpp"
 
@@ -56,378 +53,91 @@ auto checkParity(Data const data, Size const size, Bit const parity) -> bool {
 Controller::Controller(Driver const& driver, Address const address) noexcept : m_driver(driver), m_address(address) {
 }
 
-auto Controller::registerOnMaster() const -> bool {
-  Message const message = {
-      .broadcast = BroadcastType::BROADCAST,
-      .master    = m_address,
-      .slave     = 0xFFF,
-      .control   = 0xF,
-      .length    = 1,
-      .data      = {0x1F},
-  };
-
-  auto const expectedResult = writeMessage(message);
-  if (expectedResult.has_value()) {
-    return true;
+auto Controller::readMessage() const noexcept -> std::optional<Message> {
+  if (not m_driver.isEnabled() or not m_driver.readStartBit()) {
+    return std::nullopt;
   }
 
-  ESP_LOGE(TAG, "%u", static_cast<Bit>(expectedResult.error()));
+  Message message{};
 
-  return false;
-}
+  // BROADCAST
+  auto const optionalBroadcast = m_driver.readBit();
+  if (not optionalBroadcast) {
+    return std::nullopt;
+  }
+  message.broadcast = static_cast<BroadcastType>(*optionalBroadcast);
 
-auto Controller::readMessage() const noexcept -> std::expected<Message, BitError> {
-  if (not m_driver.isEnabled()) {
-    BitResult const bitResult = {
-        .pulseWidth = 0,
-        .bitType    = BitType::BIT_UNKNOWN,
-    };
+  // MASTER
+  auto const optionalMaster       = m_driver.readBits(ADDRESS_BIT_SIZE);
+  auto const optionalMasterParity = m_driver.readBit();
+  if (not optionalMaster or not optionalMasterParity) {
+    return std::nullopt;
+  }
+  if (not checkParity(*optionalMaster, ADDRESS_BIT_SIZE, *optionalMasterParity)) {
+    return std::nullopt;
+  }
+  message.master = static_cast<Address>(*optionalMaster);
 
-    BitError const bitError = {
-        .bitResult = bitResult,
-        .errorType  = ErrorType::CONTROLLER_DISABLED,
-    };
+  // SLAVE
+  auto const optionalSlave       = m_driver.readBits(ADDRESS_BIT_SIZE);
+  auto const optionalSlaveParity = m_driver.readBit();
+  if (not optionalSlave or not optionalSlaveParity) {
+    return std::nullopt;
+  }
+  message.slave = static_cast<Address>(*optionalSlave);
 
-    return std::unexpected(bitError);
+  bool const isTargeted    = (message.broadcast == BroadcastType::FOR_DEVICE and message.slave == m_address);
+  bool const slaveParityOk = checkParity(*optionalSlave, ADDRESS_BIT_SIZE, *optionalSlaveParity);
+
+  if (isTargeted) {
+    m_driver.writeAckBit(slaveParityOk ? AckType::ACK : AckType::NAK);
+  } else {
+    std::ignore = m_driver.readAckBit();
   }
 
-  /**
-   * START BIT
-   */
-  {
-    auto const expectedData = m_driver.readStartBit();
-    if (not expectedData) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::START_BIT_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
+  if (not slaveParityOk) {
+    return std::nullopt;
   }
 
-  Message message = {};
-
-  /**
-   * BROADCAST
-   */
-  {
-    auto const expectedData = m_driver.readBit();
-    if (not expectedData) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::BROADCAST_BIT_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const data = expectedData.value();
-
-    message.broadcast = static_cast<BroadcastType>(data);
+  // CONTROL
+  auto const optionalControlData = readVerifiedField(CONTROL_BIT_SIZE, isTargeted);
+  if (not optionalControlData) {
+    return std::nullopt;
   }
+  message.control = static_cast<Byte>(*optionalControlData);
 
-  /**
-   * MASTER
-   */
-  {
-    auto const expectedData = m_driver.readBits(ADDRESS_BIT_SIZE);
-    if (not expectedData) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::MASTER_ADDRESS_DATA_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const expectedParityBit = m_driver.readBit();
-    if (not expectedParityBit) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::MASTER_ADDRESS_PARITY_BIT_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const data      = expectedData.value();
-    auto const parityBit = expectedParityBit.value();
-
-    message.master = static_cast<Address>(data);
-
-    auto const isParityValid = checkParity(data, ADDRESS_BIT_SIZE, parityBit);
-    if (not isParityValid) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::MASTER_ADDRESS_PARITY_WRONG,
-      };
-
-      return std::unexpected(bitError);
-    }
+  // LENGTH
+  auto const optionalLengthData = readVerifiedField(LENGTH_BIT_SIZE, isTargeted);
+  if (not optionalLengthData) {
+    return std::nullopt;
   }
+  message.length = (*optionalLengthData == 0) ? 256 : static_cast<Size>(*optionalLengthData);
 
-  /**
-   * SLAVE
-   */
-  {
-    auto const expectedData = m_driver.readBits(ADDRESS_BIT_SIZE);
-    if (not expectedData) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::SLAVE_ADDRESS_DATA_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
+  // DATA
+  for (Size i = 0; i < message.length; ++i) {
+    auto const optionalByteData = readVerifiedField(DATA_BIT_SIZE, isTargeted);
+    if (not optionalByteData) {
+      return std::nullopt;
     }
-
-    auto const expectedParityBit = m_driver.readBit();
-    if (not expectedParityBit) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::SLAVE_ADDRESS_PARITY_BIT_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const data      = expectedData.value();
-    auto const parityBit = expectedParityBit.value();
-
-    message.slave = static_cast<Address>(data);
-
-    auto const isPersonal     = message.broadcast == BroadcastType::FOR_DEVICE;
-    auto const isTargeted     = message.slave == m_address;
-    auto const isAnswerNeeded = isPersonal and isTargeted;
-
-    if (isAnswerNeeded) {
-      auto const isParityValid = checkParity(data, ADDRESS_BIT_SIZE, parityBit);
-
-      m_driver.writeAckBit(isParityValid ? AckType::ACK : AckType::NAK);
-
-      if (not isParityValid) {
-        auto const bitResult = expectedData.error();
-
-        BitError const bitError = {
-            .bitResult = bitResult,
-            .errorType  = ErrorType::SLAVE_ADDRESS_PARITY_WRONG,
-        };
-
-        return std::unexpected(bitError);
-      }
-
-    } else {
-      std::ignore = m_driver.readAckBit();
-    }
-  }
-
-  /**
-   * CONTROL
-   */
-  {
-    auto const expectedData = m_driver.readBits(CONTROL_BIT_SIZE);
-    if (not expectedData) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::CONTROL_DATA_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const expectedParityBit = m_driver.readBit();
-    if (not expectedParityBit) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::CONTROL_PARITY_BIT_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const data      = expectedData.value();
-    auto const parityBit = expectedParityBit.value();
-
-    message.control = static_cast<Byte>(data);
-
-    auto const isPersonal     = message.broadcast == BroadcastType::FOR_DEVICE;
-    auto const isTargeted     = message.slave == m_address;
-    auto const isAnswerNeeded = isPersonal and isTargeted;
-
-    if (isAnswerNeeded) {
-      auto const isParityValid = checkParity(data, CONTROL_BIT_SIZE, parityBit);
-
-      m_driver.writeAckBit(isParityValid ? AckType::ACK : AckType::NAK);
-
-      if (not isParityValid) {
-        auto const bitResult = expectedData.error();
-
-        BitError const bitError = {
-            .bitResult = bitResult,
-            .errorType  = ErrorType::CONTROL_PARITY_WRONG,
-        };
-
-        return std::unexpected(bitError);
-      }
-
-    } else {
-      std::ignore = m_driver.readAckBit();
-    }
-  }
-
-  /**
-   * LENGTH
-   */
-  {
-    auto const expectedData = m_driver.readBits(LENGTH_BIT_SIZE);
-    if (not expectedData) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::LENGTH_DATA_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const expectedParityBit = m_driver.readBit();
-    if (not expectedParityBit) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::LENGTH_PARITY_BIT_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const data      = expectedData.value();
-    auto const parityBit = expectedParityBit.value();
-
-    if (data == 0) {
-      message.length = static_cast<Size>(256);
-    } else {
-      message.length = static_cast<Size>(data);
-    }
-
-    auto const isPersonal     = message.broadcast == BroadcastType::FOR_DEVICE;
-    auto const isTargeted     = message.slave == m_address;
-    auto const isAnswerNeeded = isPersonal and isTargeted;
-
-    if (isAnswerNeeded) {
-      auto const isParityValid = checkParity(data, LENGTH_BIT_SIZE, parityBit);
-
-      m_driver.writeAckBit(isParityValid ? AckType::ACK : AckType::NAK);
-
-      if (not isParityValid) {
-        auto const bitResult = expectedData.error();
-
-        BitError const bitError = {
-            .bitResult = bitResult,
-            .errorType  = ErrorType::LENGTH_PARITY_WRONG,
-        };
-
-        return std::unexpected(bitError);
-      }
-
-    } else {
-      std::ignore = m_driver.readAckBit();
-    }
-  }
-
-  /**
-   * DATA
-   */
-  for (Size i = 0; i < message.length; i++) {
-    auto const expectedData = m_driver.readBits(DATA_BIT_SIZE);
-    if (not expectedData) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::DATA_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const expectedParityBit = m_driver.readBit();
-    if (not expectedParityBit) {
-      auto const bitResult = expectedData.error();
-
-      BitError const bitError = {
-          .bitResult = bitResult,
-          .errorType  = ErrorType::DATA_PARITY_BIT_READ_ERROR,
-      };
-
-      return std::unexpected(bitError);
-    }
-
-    auto const data      = expectedData.value();
-    auto const parityBit = expectedParityBit.value();
-
-    message.data[i] = static_cast<Byte>(data);
-
-    auto const isPersonal     = message.broadcast == BroadcastType::FOR_DEVICE;
-    auto const isTargeted     = message.slave == m_address;
-    auto const isAnswerNeeded = isPersonal and isTargeted;
-
-    if (isAnswerNeeded) {
-      auto const isParityValid = checkParity(data, DATA_BIT_SIZE, parityBit);
-
-      m_driver.writeAckBit(isParityValid ? AckType::ACK : AckType::NAK);
-
-      if (not isParityValid) {
-        auto const bitResult = expectedData.error();
-
-        BitError const bitError = {
-            .bitResult = bitResult,
-            .errorType  = ErrorType::DATA_PARITY_WRONG,
-        };
-
-        return std::unexpected(bitError);
-      }
-
-    } else {
-      std::ignore = m_driver.readAckBit();
-    }
+    message.data[i] = static_cast<Byte>(*optionalByteData);
   }
 
   return message;
 }
 
-auto Controller::writeMessage(Message const& message) const noexcept -> std::expected<bool, ErrorType> {
+auto Controller::writeMessage(Message const& message) const noexcept -> bool {
   if (not m_driver.isEnabled()) {
-    return std::unexpected(ErrorType::CONTROLLER_DISABLED);
+    return false;
   }
 
   while (not m_driver.isBusFree()) {
   }
 
-  auto const isStarted = m_driver.writeStartBit();
-  if (not isStarted) {
-    return std::unexpected(ErrorType::START_BIT_ARBITRATION_LOST);
-  }
+  m_driver.writeStartBit();
+  //  auto const isStarted = m_driver.writeStartBit();
+  //  if (not isStarted) {
+  //    return std::unexpected(ErrorType::START_BIT_ARBITRATION_LOST);
+  //  }
 
   m_driver.writeBit(static_cast<Bit>(message.broadcast));
 
@@ -445,17 +155,18 @@ auto Controller::writeMessage(Message const& message) const noexcept -> std::exp
     m_driver.writeBit(parityBit);
 
     if (message.broadcast == BroadcastType::FOR_DEVICE) {
-      auto const expectedAckBit = m_driver.readAckBit();
-      if (not expectedAckBit) {
-        return std::unexpected(ErrorType::SLAVE_ADDRESS_ACK_BIT_READ_ERROR);
+      auto const optionalAckBit = m_driver.readAckBit();
+      if (not optionalAckBit) {
+        return false;
       }
 
-      auto const ackBit = expectedAckBit.value();
+      auto const ackBit = optionalAckBit.value();
       if (ackBit == AckType::NAK) {
-        return std::unexpected(ErrorType::SLAVE_ADDRESS_ACK_WRONG);
+        return false;
       }
+
     } else {
-      m_driver.writeAckBit(AckType::ACK);
+      m_driver.writeAckBit(AckType::NAK);
     }
   }
 
@@ -466,17 +177,18 @@ auto Controller::writeMessage(Message const& message) const noexcept -> std::exp
     m_driver.writeBit(parityBit);
 
     if (message.broadcast == BroadcastType::FOR_DEVICE) {
-      auto const expectedAckBit = m_driver.readAckBit();
-      if (not expectedAckBit) {
-        return std::unexpected(ErrorType::CONTROL_ACK_BIT_READ_ERROR);
+      auto const optionalAckBit = m_driver.readAckBit();
+      if (not optionalAckBit) {
+        return false;
       }
 
-      auto const ackBit = expectedAckBit.value();
+      auto const ackBit = optionalAckBit.value();
       if (ackBit == AckType::NAK) {
-        return std::unexpected(ErrorType::CONTROL_ACK_WRONG);
+        return false;
       }
+
     } else {
-      m_driver.writeAckBit(AckType::ACK);
+      m_driver.writeAckBit(AckType::NAK);
     }
   }
 
@@ -487,17 +199,18 @@ auto Controller::writeMessage(Message const& message) const noexcept -> std::exp
     m_driver.writeBit(parityBit);
 
     if (message.broadcast == BroadcastType::FOR_DEVICE) {
-      auto const expectedAckBit = m_driver.readAckBit();
-      if (not expectedAckBit) {
-        return std::unexpected(ErrorType::LENGTH_ACK_BIT_READ_ERROR);
+      auto const optionalAckBit = m_driver.readAckBit();
+      if (not optionalAckBit) {
+        return false;
       }
 
-      auto const ackBit = expectedAckBit.value();
+      auto const ackBit = optionalAckBit.value();
       if (ackBit == AckType::NAK) {
-        return std::unexpected(ErrorType::LENGTH_ACK_WRONG);
+        return false;
       }
+
     } else {
-      m_driver.writeAckBit(AckType::ACK);
+      m_driver.writeAckBit(AckType::NAK);
     }
   }
 
@@ -508,21 +221,47 @@ auto Controller::writeMessage(Message const& message) const noexcept -> std::exp
     m_driver.writeBit(parityBit);
 
     if (message.broadcast == BroadcastType::FOR_DEVICE) {
-      auto const expectedAckBit = m_driver.readAckBit();
-      if (not expectedAckBit) {
-        return std::unexpected(ErrorType::DATA_ACK_BIT_READ_ERROR);
+      auto const optionalAckBit = m_driver.readAckBit();
+      if (not optionalAckBit) {
+        return false;
       }
 
-      auto const ackBit = expectedAckBit.value();
+      auto const ackBit = optionalAckBit.value();
       if (ackBit == AckType::NAK) {
-        return std::unexpected(ErrorType::DATA_ACK_WRONG);
+        return false;
       }
+
     } else {
-      m_driver.writeAckBit(AckType::ACK);
+      m_driver.writeAckBit(AckType::NAK);
     }
   }
 
   return true;
+}
+
+auto Controller::readVerifiedField(Size const bitSize, bool const sendAck) const noexcept -> std::optional<Data> {
+  auto const optionalData   = m_driver.readBits(bitSize);
+  auto const optionalParity = m_driver.readBit();
+
+  if (not optionalData or not optionalParity) {
+    return std::nullopt;
+  }
+
+  auto const data    = optionalData.value();
+  auto const parity  = optionalParity.value();
+  auto const isValid = checkParity(data, bitSize, parity);
+
+  if (sendAck) {
+    m_driver.writeAckBit(isValid ? AckType::ACK : AckType::NAK);
+  } else {
+    std::ignore = m_driver.readAckBit();
+  }
+
+  if (not isValid) {
+    return std::nullopt;
+  }
+
+  return data;
 }
 
 } // namespace iebus

@@ -37,36 +37,6 @@ using Time    = std::int64_t;
 using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
 using Address = std::uint16_t;
 
-enum class ErrorType : Bit {
-  CONTROLLER_DISABLED                  = 0,
-  START_BIT_READ_ERROR                 = 10,
-  START_BIT_ARBITRATION_LOST           = 11,
-  BROADCAST_BIT_READ_ERROR             = 20,
-  MASTER_ADDRESS_DATA_READ_ERROR       = 30,
-  MASTER_ADDRESS_PARITY_BIT_READ_ERROR = 31,
-  MASTER_ADDRESS_PARITY_WRONG          = 32,
-  SLAVE_ADDRESS_DATA_READ_ERROR        = 40,
-  SLAVE_ADDRESS_PARITY_BIT_READ_ERROR  = 41,
-  SLAVE_ADDRESS_PARITY_WRONG           = 42,
-  SLAVE_ADDRESS_ACK_BIT_READ_ERROR     = 43,
-  SLAVE_ADDRESS_ACK_WRONG              = 44,
-  CONTROL_DATA_READ_ERROR              = 50,
-  CONTROL_PARITY_BIT_READ_ERROR        = 51,
-  CONTROL_PARITY_WRONG                 = 52,
-  CONTROL_ACK_BIT_READ_ERROR           = 53,
-  CONTROL_ACK_WRONG                    = 54,
-  LENGTH_DATA_READ_ERROR               = 60,
-  LENGTH_PARITY_BIT_READ_ERROR         = 61,
-  LENGTH_PARITY_WRONG                  = 62,
-  LENGTH_ACK_BIT_READ_ERROR            = 63,
-  LENGTH_ACK_WRONG                     = 64,
-  DATA_READ_ERROR                      = 70,
-  DATA_PARITY_BIT_READ_ERROR           = 71,
-  DATA_PARITY_WRONG                    = 72,
-  DATA_ACK_BIT_READ_ERROR              = 73,
-  DATA_ACK_WRONG                       = 74,
-};
-
 enum class AckType : Bit {
   ACK = 0,
   NAK = 1,
@@ -82,16 +52,6 @@ enum class BitType : Bit {
 enum class BroadcastType : Bit {
   BROADCAST  = 0,
   FOR_DEVICE = 1,
-};
-
-struct BitResult {
-  Time pulseWidth;
-  BitType bitType;
-};
-
-struct BitError {
-  BitResult bitResult;
-  ErrorType errorType;
 };
 
 } // namespace iebus

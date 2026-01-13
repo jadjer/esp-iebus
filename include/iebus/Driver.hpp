@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <expected>
 #include <optional>
 
 #include <iebus/types.hpp>
@@ -72,30 +71,30 @@ public:
   /**
    * Send start bit to IEBus
    */
-  [[nodiscard]] auto readStartBit() const noexcept -> std::expected<bool, BitResult>;
+  [[nodiscard]] auto readStartBit() const noexcept -> bool;
   /**
    * Get single bit from IEBus
    * @return Data bit
    */
-  [[nodiscard]] auto readBit() const noexcept -> std::expected<Bit, BitResult>;
+  [[nodiscard]] auto readBit() const noexcept -> std::optional<Bit>;
   /**
    * Wait ack from IEBus
    * @return Ack value
    */
-  [[nodiscard]] auto readAckBit() const noexcept -> std::expected<AckType, BitResult>;
+  [[nodiscard]] auto readAckBit() const noexcept -> std::optional<AckType>;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readBits(Size numBits) const noexcept -> std::expected<Data, BitResult>;
+  [[nodiscard]] auto readBits(Size numBits) const noexcept -> std::optional<Data>;
 
 public:
   /**
    * Get start bit from IEBus
    * @return
    */
-  [[nodiscard]] auto writeStartBit() const noexcept -> bool;
+  auto writeStartBit() const noexcept -> void;
   /**
    * Send bit to IEBus
    * @param bit single bit data
@@ -115,17 +114,17 @@ public:
 
 public:
   /**
-   * Read bit result
-   * @return Bit result
+   * Capture bit type
+   * @return Bit type
    */
-  [[nodiscard]] auto readBitResult() const noexcept -> BitResult;
+  [[nodiscard]] auto captureBitType() const noexcept -> BitType;
   /**
-   * Get pulse width
+   * Capture pulse width
    * @return Pulse width
    */
-  [[nodiscard]] auto readPulseWidth() const noexcept -> Time;
+  [[nodiscard]] auto capturePulseWidth() const noexcept -> Time;
 
-public:
+private:
   /**
    * Wait before IEBus is change
    * @tparam Predicate

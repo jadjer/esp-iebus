@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <expected>
+#include <optional>
 
 #include <iebus/Driver.hpp>
 #include <iebus/Message.hpp>
@@ -39,20 +39,20 @@ public:
   virtual ~Controller() noexcept = default;
 
 public:
-  [[nodiscard]] auto registerOnMaster() const -> bool;
-
-public:
   /**
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() const noexcept -> std::expected<Message, BitError>;
+  [[nodiscard]] auto readMessage() const noexcept -> std::optional<Message>;
   /**
    * Write a message to IEBus
    * @param message Message
    * @return bool
    */
-  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const noexcept -> std::expected<bool, ErrorType>;
+  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const noexcept -> bool;
+
+private:
+  [[nodiscard]] auto readVerifiedField(Size bitSize, bool sendAck) const noexcept -> std::optional<Data>;
 
 private:
   Driver const& m_driver;
