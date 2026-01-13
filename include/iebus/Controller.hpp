@@ -35,25 +35,8 @@ namespace iebus {
  */
 class Controller {
 public:
-  Controller(Pin rx, Pin tx, Pin enable, Address address) noexcept;
+  Controller(Driver const& driver, Address address) noexcept;
   virtual ~Controller() noexcept = default;
-
-public:
-  /**
-   * Enable IEBus driver
-   */
-  auto enable() const -> void;
-  /**
-   * Enable IEBus driver
-   */
-  auto disable() const -> void;
-
-public:
-  /**
-   * Check if IEBus controller enabled
-   * @return bool
-   */
-  [[nodiscard]] auto isEnabled() const -> bool;
 
 public:
   [[nodiscard]] auto registerOnMaster() const -> bool;
@@ -63,19 +46,17 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() const -> std::expected<Message, MessageError>;
+  [[nodiscard]] auto readMessage() const noexcept -> std::expected<Message, MessageError>;
   /**
    * Write a message to IEBus
    * @param message Message
    * @return bool
    */
-  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const -> std::expected<bool, MessageError>;
+  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const noexcept -> std::expected<bool, MessageError>;
 
 private:
+  Driver const& m_driver;
   Address const m_address;
-
-private:
-  Driver m_driver;
 };
 
 } // namespace iebus

@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <expected>
 #include <optional>
 
 #include <iebus/types.hpp>
@@ -40,84 +41,89 @@ public:
    * IEBus transmitter enabled
    * @return bool
    */
-  [[nodiscard]] auto isEnabled() const -> bool;
+  [[nodiscard]] auto isEnabled() const noexcept -> bool;
   /**
    * Check if IEBus is high
    * @return bool
    */
-  [[nodiscard]] auto isBusHigh() const -> bool;
+  [[nodiscard]] auto isBusHigh() const noexcept -> bool;
   /**
    * Check if IEBus is low
    * @return bool
    */
-  [[nodiscard]] auto isBusLow() const -> bool;
+  [[nodiscard]] auto isBusLow() const noexcept -> bool;
   /**
    * Check if bus is free
    * @return bool
    */
-  [[nodiscard]] auto isBusFree() const -> bool;
+  [[nodiscard]] auto isBusFree() const noexcept -> bool;
 
 public:
   /**
    * Enable IEBus transmitter
    */
-  auto enable() const -> void;
+  auto enable() const noexcept -> void;
   /**
    * Disable IEBus transmitter
    */
-  auto disable() const -> void;
+  auto disable() const noexcept -> void;
 
 public:
   /**
    * Send start bit to IEBus
    */
-  [[nodiscard]] auto readStartBit() const -> bool;
+  [[nodiscard]] auto readStartBit() const noexcept -> std::expected<bool, BitResult>;
   /**
    * Get single bit from IEBus
    * @return Data bit
    */
-  [[nodiscard]] auto readBit() const -> std::optional<Bit>;
+  [[nodiscard]] auto readBit() const noexcept -> std::expected<Bit, BitResult>;
   /**
    * Wait ack from IEBus
    * @return Ack value
    */
-  [[nodiscard]] auto readAckBit() const -> std::optional<AckType>;
+  [[nodiscard]] auto readAckBit() const noexcept -> std::expected<AckType, BitResult>;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readBits(Size numBits) const -> std::optional<Data>;
+  [[nodiscard]] auto readBits(Size numBits) const noexcept -> std::expected<Data, BitResult>;
 
 public:
   /**
    * Get start bit from IEBus
    * @return
    */
-  [[nodiscard]] auto writeStartBit() const -> bool;
+  [[nodiscard]] auto writeStartBit() const noexcept -> bool;
   /**
    * Send bit to IEBus
    * @param bit single bit data
    */
-  auto writeBit(Bit bit) const -> void;
+  auto writeBit(Bit bit) const noexcept -> void;
   /**
    * Send ack to IEBus
    * @param ack ack value
    */
-  auto writeAckBit(AckType ack) const -> void;
+  auto writeAckBit(AckType ack) const noexcept -> void;
   /**
    * Send data bits to IEBus
    * @param data data bits
    * @param numBits data size
    */
-  auto writeBits(Data data, Size numBits) const -> void;
+  auto writeBits(Data data, Size numBits) const noexcept -> void;
 
 public:
   /**
-   * Read bit type
-   * @return Bit type
+   * Read bit result
+   * @return Bit result
    */
-  [[nodiscard]] auto readBitType() const -> BitType;
+  [[nodiscard]] auto readBitResult() const noexcept -> BitResult;
+  /**
+   * Get pulse width
+   * @return Pulse width
+   */
+  [[nodiscard]] auto readPulseWidth() const noexcept -> Time;
 
 public:
   /**

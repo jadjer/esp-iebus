@@ -75,13 +75,18 @@ enum class AckType : Bit {
 enum class BitType : Bit {
   BIT_0       = 0,
   BIT_1       = 1,
-  BIT_START   = 2,
-  BIT_UNKNOWN = 3,
+  BIT_START   = 10,
+  BIT_UNKNOWN = 20,
 };
 
 enum class BroadcastType : Bit {
   BROADCAST  = 0,
   FOR_DEVICE = 1,
+};
+
+struct BitResult {
+  Time pulseWidth;
+  BitType bitType;
 };
 
 } // namespace iebus
