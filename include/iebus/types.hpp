@@ -37,7 +37,7 @@ using Time    = std::int64_t;
 using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
 using Address = std::uint16_t;
 
-enum class MessageError : Bit {
+enum class ErrorType : Bit {
   CONTROLLER_DISABLED                  = 0,
   START_BIT_READ_ERROR                 = 10,
   START_BIT_ARBITRATION_LOST           = 11,
@@ -87,6 +87,11 @@ enum class BroadcastType : Bit {
 struct BitResult {
   Time pulseWidth;
   BitType bitType;
+};
+
+struct BitError {
+  BitResult bitResult;
+  ErrorType errorType;
 };
 
 } // namespace iebus

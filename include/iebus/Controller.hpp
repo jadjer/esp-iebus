@@ -46,13 +46,13 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() const noexcept -> std::expected<Message, MessageError>;
+  [[nodiscard]] auto readMessage() const noexcept -> std::expected<Message, BitError>;
   /**
    * Write a message to IEBus
    * @param message Message
    * @return bool
    */
-  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const noexcept -> std::expected<bool, MessageError>;
+  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const noexcept -> std::expected<bool, ErrorType>;
 
 private:
   Driver const& m_driver;
