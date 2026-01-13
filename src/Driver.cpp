@@ -52,9 +52,9 @@ auto decodeBitType(Time const pulseWidth) -> BitType {
 
   auto const minDiff = std::min({dStart, d0, d1});
 
-  if (minDiff >= BIT_THRESHOLD) {
-    return BitType::BIT_UNKNOWN;
-  }
+//  if (minDiff >= BIT_THRESHOLD) {
+//    return BitType::BIT_UNKNOWN;
+//  }
 
   if (minDiff == dStart) {
     return BitType::BIT_START;
@@ -119,14 +119,8 @@ auto Driver::isBusFree() const noexcept -> bool {
     return false;
   }
 
-  auto const startTime = getTimeUS();
-
-  while (isBusLow()) {
-    auto const currentTime    = getTimeUS();
-    auto const differenceTime = currentTime - startTime;
-    if (differenceTime >= START_BIT_TOTAL_US) {
-      return true;
-    }
+  if (not waitUntil(START_BIT_TOTAL_US, [&] { return isBusLow(); })) {
+    return true;
   }
 
   return false;
@@ -187,7 +181,7 @@ auto Driver::readBits(Size const numBits) const noexcept -> std::expected<Data, 
       return std::unexpected(bit.error());
     }
 
-    result = (result << 1) | static_cast<Data>(*bit);
+    result = (result << 1) | static_cast<Bit>(*bit);
   }
 
   return result;
@@ -244,22 +238,23 @@ auto Driver::readBitResult() const noexcept -> BitResult {
 }
 
 auto Driver::readPulseWidth() const noexcept -> Time {
-  if (isBusLow()) {
-    if (not waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusLow(); })) {
-      return 0;
-    }
+  if (not waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusLow(); })) {
+    return 0;
   }
 
   auto const startPulseTime = getTimeUS();
 
-  if (isBusHigh()) {
-    if (not waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusHigh(); })) {
-      return 0;
-    }
+  if (not waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusHigh(); })) {
+    return 0;
   }
 
   auto const stopPulseTime = getTimeUS();
-  auto const pulseWidth    = stopPulseTime - startPulseTime;
+
+  if (startPulseTime >= stopPulseTime) {
+    return 0;
+  }
+
+  auto const pulseWidth = stopPulseTime - startPulseTime;
 
   return pulseWidth;
 }
@@ -268,7 +263,12 @@ template <typename Predicate> auto Driver::waitUntil(Time const timeout, Predica
   auto const startTime = getTimeUS();
 
   while (predicate()) {
-    auto const currentTime    = getTimeUS();
+    auto const currentTime = getTimeUS();
+
+    if (startTime >= currentTime) {
+      continue;
+    }
+
     auto const differenceTime = currentTime - startTime;
 
     if (differenceTime > timeout) {
