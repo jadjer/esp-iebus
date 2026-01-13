@@ -46,10 +46,6 @@ auto constexpr BIT_THRESHOLD = 10;
 auto constexpr WAIT_BUS_TIMEOUT_US = 10000;
 
 auto decodeBitType(Time const pulseWidth) -> BitType {
-  if (pulseWidth == 0) {
-    return BitType::BIT_UNKNOWN;
-  }
-
   auto const dStart = std::abs(pulseWidth - START_BIT_HIGH_US);
   auto const d0     = std::abs(pulseWidth - DATA_BIT_0_HIGH_US);
   auto const d1     = std::abs(pulseWidth - DATA_BIT_1_HIGH_US);
