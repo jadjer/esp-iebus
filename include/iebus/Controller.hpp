@@ -52,11 +52,19 @@ public:
   [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const noexcept -> bool;
 
 private:
+  /**
+   * Read filed and verify
+   * @param bitSize
+   * @param sendAck
+   * @return
+   */
   [[nodiscard]] auto readVerifiedField(Size bitSize, bool sendAck) const noexcept -> std::optional<Data>;
 
 private:
-  Driver const& m_driver;
   Address const m_address;
+
+private:
+  Driver const& m_driver;
 };
 
 } // namespace iebus

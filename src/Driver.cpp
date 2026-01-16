@@ -18,96 +18,51 @@
 
 #include "iebus/Driver.hpp"
 
-#include <algorithm>
 #include <driver/gpio.h>
-
-#include "common.hpp"
 
 namespace iebus {
 
 namespace {
 
-auto constexpr TAG = "IEBusDriver";
+auto constexpr START_BIT_HIGH_US   = 170;
 
-auto constexpr START_BIT_TOTAL_US = 192;
-auto constexpr START_BIT_HIGH_US  = 171;
-auto constexpr START_BIT_LOW_US   = START_BIT_TOTAL_US - START_BIT_HIGH_US;
+auto constexpr DATA_BIT_TOTAL_US  = 40;
+auto constexpr DATA_BIT_0_HIGH_US = 33;
+auto constexpr DATA_BIT_1_HIGH_US = 20;
 
-auto constexpr DATA_BIT_0_TOTAL_US = 40;
-auto constexpr DATA_BIT_0_HIGH_US  = 33;
-auto constexpr DATA_BIT_0_LOW_US   = DATA_BIT_0_TOTAL_US - DATA_BIT_0_HIGH_US;
-
-auto constexpr DATA_BIT_1_TOTAL_US = 38;
-auto constexpr DATA_BIT_1_HIGH_US  = 20;
-auto constexpr DATA_BIT_1_LOW_US   = DATA_BIT_1_TOTAL_US - DATA_BIT_1_HIGH_US;
-
-auto constexpr BIT_THRESHOLD_US = 20;
-
-auto constexpr WAIT_BUS_TIMEOUT_US = 10000;
-
-auto decodeBitType(Time const pulseWidth) -> BitType {
-  auto const dStart = std::abs(pulseWidth - START_BIT_HIGH_US);
-  auto const d0     = std::abs(pulseWidth - DATA_BIT_0_HIGH_US);
-  auto const d1     = std::abs(pulseWidth - DATA_BIT_1_HIGH_US);
-
-  auto const minDiff = std::min({dStart, d0, d1});
-
-  if (minDiff >= BIT_THRESHOLD_US) {
-    return BitType::BIT_UNKNOWN;
-  }
-
-  if (minDiff == dStart) {
-    return BitType::BIT_START;
-  }
-
-  if (minDiff == d0) {
-    return BitType::BIT_0;
-  }
-
-  if (minDiff == d1) {
-    return BitType::BIT_1;
-  }
-
-  return BitType::BIT_UNKNOWN;
+auto constexpr pulseToBit(Time const pulseWidth) noexcept -> Bit {
+  auto constexpr BIT_THRESHOLD_US = (DATA_BIT_0_HIGH_US + DATA_BIT_1_HIGH_US) / 2;
+  return pulseWidth <= BIT_THRESHOLD_US;
 }
 
 } // namespace
 
-Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(rx), m_txPin(tx), m_enablePin(enable) {
-  gpio_config_t const receiverConfiguration = {
+Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(rx), m_txPin(tx), m_enablePin(enable), m_enable(false), m_timer() {
+  gpio_config_t const inputConfiguration = {
       .pin_bit_mask = (1ULL << m_rxPin),
       .mode         = GPIO_MODE_INPUT,
       .pull_up_en   = GPIO_PULLUP_DISABLE,
       .pull_down_en = GPIO_PULLDOWN_DISABLE,
       .intr_type    = GPIO_INTR_DISABLE,
   };
-  gpio_config(&receiverConfiguration);
+  ESP_ERROR_CHECK(gpio_config(&inputConfiguration));
 
-  gpio_config_t const transmitterConfiguration = {
-      .pin_bit_mask = (1ULL << m_txPin),
+  gpio_config_t const outputConfiguration = {
+      .pin_bit_mask = (1ULL << m_txPin) | (1ULL << m_enablePin),
       .mode         = GPIO_MODE_OUTPUT,
       .pull_up_en   = GPIO_PULLUP_DISABLE,
       .pull_down_en = GPIO_PULLDOWN_DISABLE,
       .intr_type    = GPIO_INTR_DISABLE,
   };
-  gpio_config(&transmitterConfiguration);
-
-  gpio_config_t const enableConfiguration = {
-      .pin_bit_mask = (1ULL << m_enablePin),
-      .mode         = GPIO_MODE_INPUT_OUTPUT,
-      .pull_up_en   = GPIO_PULLUP_DISABLE,
-      .pull_down_en = GPIO_PULLDOWN_DISABLE,
-      .intr_type    = GPIO_INTR_DISABLE,
-  };
-  gpio_config(&enableConfiguration);
+  ESP_ERROR_CHECK(gpio_config(&outputConfiguration));
 }
 
 auto Driver::isEnabled() const noexcept -> bool {
-  return gpio_get_level(static_cast<gpio_num_t>(m_enablePin));
+  return m_enable;
 }
 
 auto Driver::isBusHigh() const noexcept -> bool {
-  return gpio_get_level(static_cast<gpio_num_t>(m_rxPin));
+  return gpio_get_level(m_rxPin);
 }
 
 auto Driver::isBusLow() const noexcept -> bool {
@@ -115,156 +70,111 @@ auto Driver::isBusLow() const noexcept -> bool {
 }
 
 auto Driver::isBusFree() const noexcept -> bool {
-  if (isBusHigh()) {
-    return false;
-  }
+  m_timer.reset();
 
-  if (not waitUntil(START_BIT_TOTAL_US, [&] { return isBusLow(); })) {
-    return true;
-  }
-
-  return false;
-}
-
-auto Driver::enable() const noexcept -> void {
-  gpio_set_level(static_cast<gpio_num_t>(m_enablePin), 1);
-}
-
-auto Driver::disable() const noexcept -> void {
-  gpio_set_level(static_cast<gpio_num_t>(m_enablePin), 0);
-}
-
-auto Driver::readStartBit() const noexcept -> bool {
-  auto const bitType = captureBitType();
-
-  if (bitType == BitType::BIT_START) {
-    return true;
+  while (isBusLow()) {
+    auto const delay = m_timer.getTime();
+    if (delay > DATA_BIT_TOTAL_US) {
+      return true;
+    }
   }
 
   return false;
 }
 
-auto Driver::readBit() const noexcept -> std::optional<Bit> {
-  auto const bitType = captureBitType();
+auto Driver::enable() noexcept -> void {
+  ESP_ERROR_CHECK(gpio_set_level(m_txPin, 0));
+  ESP_ERROR_CHECK(gpio_set_level(m_enablePin, 1));
 
-  if (bitType == BitType::BIT_0) {
-    return 0;
-  }
+  while (isBusHigh()) {}
 
-  if (bitType == BitType::BIT_1) {
-    return 1;
-  }
+  m_timer.enable();
+  m_timer.start();
 
-  return std::nullopt;
+  m_enable = true;
 }
 
-auto Driver::readAckBit() const noexcept -> std::optional<AckType> {
-  auto const bitType = captureBitType();
+auto Driver::disable() noexcept -> void {
+  ESP_ERROR_CHECK(gpio_set_level(m_txPin, 0));
+  ESP_ERROR_CHECK(gpio_set_level(m_enablePin, 0));
 
-  if (bitType == BitType::BIT_0) {
-    return AckType::ACK;
-  }
+  m_timer.stop();
+  m_timer.disable();
 
-  if (bitType == BitType::BIT_1) {
-    return AckType::NAK;
-  }
-
-  return std::nullopt;
+  m_enable = false;
 }
 
-auto Driver::readBits(Size const numBits) const noexcept -> std::optional<Data> {
+auto Driver::readStartBit() const -> bool {
+  auto constexpr START_BIT_THRESHOLD = 20;
+  auto constexpr LOWER_LIMIT  = START_BIT_HIGH_US - START_BIT_THRESHOLD;
+  auto constexpr UPPER_LIMIT  = START_BIT_HIGH_US + START_BIT_THRESHOLD;
+
+  auto const pulseWidth = capturePulseWidth();
+  return (pulseWidth >= LOWER_LIMIT and pulseWidth <= UPPER_LIMIT);
+}
+
+auto Driver::readBits(Size const numBits) const noexcept -> Data {
   Data result = 0;
 
   for (Size i = 0; i < numBits; ++i) {
-    auto const optionalBit = readBit();
-    if (not optionalBit) {
-      return std::nullopt;
-    }
+    auto const pulseWidth = capturePulseWidth();
+    auto const bit        = pulseToBit(pulseWidth);
 
-    auto const bit = optionalBit.value();
-
-    result = (result << 1) | static_cast<Bit>(bit);
+    result = (result << 1) | bit;
   }
 
   return result;
 }
 
 auto Driver::writeStartBit() const noexcept -> void {
+  auto constexpr START_BIT_TOTAL_US  = 192;
+  auto constexpr START_BIT_LOW_US = START_BIT_TOTAL_US - START_BIT_HIGH_US;
+
   auto const highDuration = START_BIT_HIGH_US;
   auto const lowDuration  = START_BIT_LOW_US;
 
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-  delayUS(highDuration);
+  m_timer.reset();
 
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
-  delayUS(lowDuration);
-}
+  ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1));
 
-auto Driver::writeBit(Bit const bit) const noexcept -> void {
-  auto const highDuration = bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US;
-  auto const lowDuration  = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
+  while (m_timer.getTime() < highDuration) {}
 
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-  delayUS(highDuration);
+  ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0));
 
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
-  delayUS(lowDuration);
-}
-
-auto Driver::writeAckBit(AckType const ack) const noexcept -> void {
-  if (ack == AckType::ACK) {
-    return writeBit(0);
-  }
-
-  writeBit(1);
+  while (m_timer.getTime() < lowDuration) {}
 }
 
 auto Driver::writeBits(Data const data, Size const numBits) const noexcept -> void {
+  auto constexpr DATA_BIT_0_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
+  auto constexpr DATA_BIT_1_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
+
   for (Size i = 0; i < numBits; ++i) {
     auto const bitPosition = numBits - 1 - i;
     auto const bit         = static_cast<Bit>(data >> bitPosition & 1);
 
-    writeBit(bit);
+    auto const highDuration = bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US;
+    auto const lowDuration  = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
+
+    m_timer.reset();
+
+    ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1));
+
+    while (m_timer.getTime() < highDuration) {}
+
+    ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0));
+
+    while (m_timer.getTime() < lowDuration) {}
   }
-}
-
-auto Driver::captureBitType() const noexcept -> BitType {
-  auto const pulseWidth = capturePulseWidth();
-  auto const bitType    = decodeBitType(pulseWidth);
-
-  return bitType;
 }
 
 auto Driver::capturePulseWidth() const noexcept -> Time {
-  if (not waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusLow(); })) {
-    return 0;
-  }
+  while (isBusLow()) {}
 
-  auto const startTime = getTimeUS();
+  m_timer.reset();
 
-  if (not waitUntil(WAIT_BUS_TIMEOUT_US, [&] { return isBusHigh(); })) {
-    return 0;
-  }
+  while (isBusHigh()) {}
 
-  auto const stopTime   = getTimeUS();
-  auto const pulseWidth = stopTime - startTime;
-
-  return pulseWidth;
-}
-
-template <typename Predicate> auto Driver::waitUntil(Time const timeout, Predicate const predicate) const -> bool {
-  auto const startTime = getTimeUS();
-
-  while (predicate()) {
-    auto const currentTime    = getTimeUS();
-    auto const differenceTime = currentTime - startTime;
-
-    if (differenceTime > timeout) {
-      return false;
-    }
-  }
-
-  return true;
+  return m_timer.getTime();
 }
 
 } // namespace iebus

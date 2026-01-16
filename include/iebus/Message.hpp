@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <string>
-
 #include <iebus/types.hpp>
 
 /**
@@ -31,8 +29,6 @@ namespace iebus {
  * @class Message
  */
 struct Message {
-  [[nodiscard]] [[maybe_unused]] auto toString() const -> std::string;
-
   BroadcastType broadcast;
   Address master;
   Address slave;
@@ -40,5 +36,7 @@ struct Message {
   Size length;
   Bytes data;
 };
+
+auto printMessage(Message const& message) -> void;
 
 } // namespace iebus

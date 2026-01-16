@@ -1,4 +1,4 @@
-// Copyright 2026 Pavel Suprunov
+// Copyright 2025 Pavel Suprunov
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,46 +13,21 @@
 // limitations under the License.
 
 //
-// Created by jadjer on 24.12.2025.
+// Created by jadjer on 16.01.2026.
 //
 
 #include "iebus/Message.hpp"
 
-#include <format>
-
 namespace iebus {
 
-namespace {
-
-auto formatBroadcastType(BroadcastType const type) -> std::string {
-  switch (type) {
-  case BroadcastType::BROADCAST:
-    return "B";
-  case BroadcastType::FOR_DEVICE:
-    return "D";
+auto printMessage(Message const& message) -> void {
+  auto const broadcast = message.broadcast == iebus::BroadcastType::FOR_DEVICE ? "D" : "B";
+  printf("%s %03X %03X %01X %hu [", broadcast, message.master, message.slave, message.control, message.length);
+  printf("%02X", message.data[0]);
+  for (auto i = 1; i < message.length; ++i) {
+    printf(" %02X", message.data[i]);
   }
-
-  return "U";
-}
-
-auto formatBytesHex(Bytes const bytes, Size const byteSize) -> std::string {
-  std::string result;
-
-  for (Size i = 0; i < byteSize; ++i) {
-    result += std::format("{:02X}", bytes[i]);
-
-    if (i < byteSize - 1) {
-      result += " ";
-    }
-  }
-
-  return result;
-}
-
-} // namespace
-
-auto Message::toString() const -> std::string {
-  return std::format("{} {:3X} {:3X} {:1X} [{}]", formatBroadcastType(broadcast), master, slave, control, formatBytesHex(data, length));
+  printf("]\n");
 }
 
 } // namespace iebus

@@ -20,6 +20,7 @@
 
 #include <optional>
 
+#include <iebus/Timer.hpp>
 #include <iebus/types.hpp>
 
 /**
@@ -61,33 +62,20 @@ public:
   /**
    * Enable IEBus transmitter
    */
-  auto enable() const noexcept -> void;
+  auto enable() noexcept -> void;
   /**
    * Disable IEBus transmitter
    */
-  auto disable() const noexcept -> void;
+  auto disable() noexcept -> void;
 
 public:
-  /**
-   * Send start bit to IEBus
-   */
-  [[nodiscard]] auto readStartBit() const noexcept -> bool;
-  /**
-   * Get single bit from IEBus
-   * @return Data bit
-   */
-  [[nodiscard]] auto readBit() const noexcept -> std::optional<Bit>;
-  /**
-   * Wait ack from IEBus
-   * @return Ack value
-   */
-  [[nodiscard]] auto readAckBit() const noexcept -> std::optional<AckType>;
+  [[nodiscard]] auto readStartBit() const -> bool;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readBits(Size numBits) const noexcept -> std::optional<Data>;
+  [[nodiscard]] auto readBits(Size numBits) const noexcept -> Data;
 
 public:
   /**
@@ -95,16 +83,6 @@ public:
    * @return
    */
   auto writeStartBit() const noexcept -> void;
-  /**
-   * Send bit to IEBus
-   * @param bit single bit data
-   */
-  auto writeBit(Bit bit) const noexcept -> void;
-  /**
-   * Send ack to IEBus
-   * @param ack ack value
-   */
-  auto writeAckBit(AckType ack) const noexcept -> void;
   /**
    * Send data bits to IEBus
    * @param data data bits
@@ -114,30 +92,19 @@ public:
 
 public:
   /**
-   * Capture bit type
-   * @return Bit type
-   */
-  [[nodiscard]] auto captureBitType() const noexcept -> BitType;
-  /**
    * Capture pulse width
    * @return Pulse width
    */
   [[nodiscard]] auto capturePulseWidth() const noexcept -> Time;
 
 private:
-  /**
-   * Wait before IEBus is change
-   * @tparam Predicate
-   * @param timeout
-   * @param predicate
-   * @return bool
-   */
-  template <typename Predicate> auto waitUntil(Time timeout, Predicate predicate) const -> bool;
-
-private:
   Pin const m_rxPin;
   Pin const m_txPin;
   Pin const m_enablePin;
+
+private:
+  bool m_enable;
+  Timer m_timer;
 };
 
 } // namespace iebus

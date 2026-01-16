@@ -20,6 +20,7 @@
 
 #include <array>
 #include <cstdint>
+#include <driver/gpio.h>
 
 /**
  * @namespace iebus
@@ -29,29 +30,35 @@ namespace iebus {
 auto constexpr MAX_MESSAGE_SIZE = 256;
 
 using Bit     = std::uint8_t;
-using Pin     = std::uint8_t;
+using Pin     = gpio_num_t;
 using Byte    = std::uint8_t;
 using Data    = std::uint16_t;
 using Size    = std::uint16_t;
-using Time    = std::int64_t;
+using Time    = std::uint64_t;
 using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
 using Address = std::uint16_t;
 
-enum class AckType : Bit {
-  ACK = 0,
-  NAK = 1,
-};
-
-enum class BitType : Bit {
-  BIT_0       = 0,
-  BIT_1       = 1,
-  BIT_START   = 10,
-  BIT_UNKNOWN = 20,
-};
-
 enum class BroadcastType : Bit {
-  BROADCAST  = 0,
-  FOR_DEVICE = 1,
+  BROADCAST  = 0x0,
+  FOR_DEVICE = 0x1,
+};
+
+enum class AckType : Bit {
+  ACK = 0x0,
+  NAK = 0x1,
+};
+
+enum class ControlType : Byte {
+  READ_SLAVE_STATUS            = 0x0,
+  READ_DATA_AND_LOCK           = 0x3,
+  READ_LOCK_ADDRESS_LOW_ORDER  = 0x4,
+  READ_LOCK_ADDRESS_HIGH_ORDER = 0x5,
+  READ_SLAVE_STATUS_AND_UNLOCK = 0x6,
+  READ_DATA                    = 0x7,
+  WRITE_COMMAND_AND_LOCK       = 0xA,
+  WRITE_DATA_AND_LOCK          = 0xB,
+  WRITE_COMMAND                = 0xE,
+  WRITE_DATA                   = 0xF,
 };
 
 } // namespace iebus
