@@ -104,7 +104,7 @@ auto Driver::disable() noexcept -> void {
   m_enable = false;
 }
 
-auto Driver::readStartBit() const -> bool {
+auto Driver::readStartBit() const noexcept -> bool {
   auto constexpr START_BIT_THRESHOLD = 20;
   auto constexpr LOWER_LIMIT  = START_BIT_HIGH_US - START_BIT_THRESHOLD;
   auto constexpr UPPER_LIMIT  = START_BIT_HIGH_US + START_BIT_THRESHOLD;

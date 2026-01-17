@@ -43,24 +43,6 @@ auto checkParity(Data const data, Bit const parity) -> bool {
   return calculatedParity == parity;
 }
 
-auto isValidControlType(Byte const value) -> bool {
-  switch (static_cast<ControlType>(value)) {
-  case ControlType::READ_SLAVE_STATUS:
-  case ControlType::READ_DATA_AND_LOCK:
-  case ControlType::READ_LOCK_ADDRESS_LOW_ORDER:
-  case ControlType::READ_LOCK_ADDRESS_HIGH_ORDER:
-  case ControlType::READ_SLAVE_STATUS_AND_UNLOCK:
-  case ControlType::READ_DATA:
-  case ControlType::WRITE_COMMAND_AND_LOCK:
-  case ControlType::WRITE_DATA_AND_LOCK:
-  case ControlType::WRITE_COMMAND:
-  case ControlType::WRITE_DATA:
-    return true;
-  default:
-    return false;
-  }
-}
-
 } // namespace
 
 Controller::Controller(Driver const& driver, Address const address) noexcept : m_address(address), m_driver(driver) {

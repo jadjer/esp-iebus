@@ -36,7 +36,6 @@ namespace iebus {
 class Controller {
 public:
   Controller(Driver const& driver, Address address) noexcept;
-  virtual ~Controller() noexcept = default;
 
 public:
   /**

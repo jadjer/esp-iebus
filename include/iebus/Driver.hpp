@@ -69,7 +69,7 @@ public:
   auto disable() noexcept -> void;
 
 public:
-  [[nodiscard]] auto readStartBit() const -> bool;
+  [[nodiscard]] auto readStartBit() const noexcept -> bool;
   /**
    * Get bits data from IEBus
    * @param numBits data size
