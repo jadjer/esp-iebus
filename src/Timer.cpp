@@ -50,7 +50,7 @@ Timer::~Timer() {
   ESP_ERROR_CHECK(gptimer_del_timer(m_timer));
 }
 
-auto Timer::enable() -> void {
+auto Timer::enable() const -> void {
   if (not m_timer) {
     return;
   }
@@ -58,7 +58,7 @@ auto Timer::enable() -> void {
   ESP_ERROR_CHECK(gptimer_enable(m_timer));
 }
 
-auto Timer::disable() -> void {
+auto Timer::disable() const -> void {
   if (not m_timer) {
     return;
   }

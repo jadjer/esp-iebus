@@ -41,11 +41,11 @@ public:
   /**
    * Enable timer
    */
-  auto enable() -> void;
+  auto enable() const -> void;
   /**
    * Disable timer
    */
-  auto disable() -> void;
+  auto disable() const -> void;
 
 public:
   /**

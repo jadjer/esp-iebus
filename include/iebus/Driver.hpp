@@ -90,12 +90,17 @@ public:
    */
   auto writeBits(Data data, Size numBits) const noexcept -> void;
 
-public:
+private:
   /**
-   * Capture pulse width
+   * Read pulse width
    * @return Pulse width
    */
-  [[nodiscard]] auto capturePulseWidth() const noexcept -> Time;
+  [[nodiscard]] auto readPulseWidth() const noexcept -> Time;
+  /**
+   * Write pulse width
+   * @param pulseWidth
+   */
+  auto writePulseWidth(Time pulse, Time frame) const noexcept -> void;
 
 private:
   Pin const m_rxPin;

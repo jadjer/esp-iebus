@@ -26,22 +26,22 @@ Processor::Processor(Address const address) noexcept : m_address(address), m_isR
 auto Processor::processMessage(Message const& message) noexcept -> std::vector<Message> {
   auto const command = message.data[0];
 
-  if (command == 10) {
+  if (command == 0x10) {
     m_isRegistered = true;
     return handleCommand10(message);
   }
 
   if (not m_isRegistered) {
     return {
-        Message{BroadcastType::BROADCAST, m_address, 0xFFF, static_cast<Byte>(ControlType::WRITE_COMMAND), 1, {0x12}},
+        Message{BroadcastType::BROADCAST, m_address, 0xFFF, ControlType::WRITE_COMMAND, 1, {0x12}},
     };
   }
 
   switch (command) {
-  case 0x20: return handleCommand20(message);
-  case 0x40: return handleCommand40(message);
-  case 0x60: return handleCommand60(message);
-  case 0x70: return handleCommand70(message);
+//  case 0x20: return handleCommand20(message);
+//  case 0x40: return handleCommand40(message);
+//  case 0x60: return handleCommand60(message);
+//  case 0x70: return handleCommand70(message);
   default: return {};
   }
 }
@@ -101,7 +101,7 @@ auto Processor::handleCommand70(Message const& message) noexcept -> std::vector<
 
 auto Processor::createResponse(Address const target, Size const length, Bytes const payload) const noexcept -> Message {
   return Message{
-      BroadcastType::FOR_DEVICE, m_address, target, static_cast<Byte>(ControlType::WRITE_COMMAND), length, payload,
+      BroadcastType::FOR_DEVICE, m_address, target, ControlType::WRITE_COMMAND, length, payload,
   };
 }
 

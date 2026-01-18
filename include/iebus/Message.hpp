@@ -32,7 +32,7 @@ struct Message {
   BroadcastType broadcast;
   Address master;
   Address slave;
-  Byte control;
+  ControlType control;
   Size length;
   Bytes data;
 };

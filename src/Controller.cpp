@@ -28,10 +28,10 @@ namespace {
 
 auto constexpr TAG = "IEBusController";
 
-auto constexpr ADDRESS_BIT_SIZE = 12;
-auto constexpr CONTROL_BIT_SIZE = 4;
-auto constexpr LENGTH_BIT_SIZE  = 8;
-auto constexpr DATA_BIT_SIZE    = 8;
+auto constexpr ADDRESS_BITS_SIZE = 12;
+auto constexpr CONTROL_BITS_SIZE = 4;
+auto constexpr LENGTH_BITS_SIZE  = 8;
+auto constexpr DATA_BITS_SIZE    = 8;
 
 auto calculateParity(Data const data) -> Bit {
   return std::popcount(data) & 1;
@@ -63,10 +63,11 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
 
   // BROADCAST
   auto const broadcastBit = m_driver.readBits(1);
-  message.broadcast       = static_cast<BroadcastType>(broadcastBit);
+
+  message.broadcast = static_cast<BroadcastType>(broadcastBit);
 
   // MASTER
-  auto const masterData          = m_driver.readBits(ADDRESS_BIT_SIZE);
+  auto const masterData          = m_driver.readBits(ADDRESS_BITS_SIZE);
   auto const masterParityBit     = m_driver.readBits(1);
   auto const isValidMasterParity = checkParity(masterData, masterParityBit);
   if (not isValidMasterParity) {
@@ -75,15 +76,16 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
   message.master = static_cast<Address>(masterData);
 
   // SLAVE
-  auto const slaveData          = m_driver.readBits(ADDRESS_BIT_SIZE);
+  auto const slaveData          = m_driver.readBits(ADDRESS_BITS_SIZE);
   auto const slaveParityBit     = m_driver.readBits(1);
   auto const isValidSlaveParity = checkParity(slaveData, slaveParityBit);
-  message.slave                 = static_cast<Address>(slaveData);
+
+  message.slave = static_cast<Address>(slaveData);
 
   auto const isTargeted = (message.broadcast == BroadcastType::FOR_DEVICE and message.slave == m_address);
 
   if (isTargeted) {
-    m_driver.writeBits(static_cast<Bit>(isValidSlaveParity ? AckType::ACK : AckType::NAK), 1);
+    m_driver.writeBits(static_cast<Data>(isValidSlaveParity ? AckType::ACK : AckType::NAK), 1);
   } else {
     std::ignore = m_driver.readBits(1);
   }
@@ -93,28 +95,31 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
   }
 
   // CONTROL
-  auto const optionalControlData = readVerifiedField(CONTROL_BIT_SIZE, isTargeted);
+  auto const optionalControlData = readVerifiedField(CONTROL_BITS_SIZE, isTargeted);
   if (not optionalControlData.has_value()) {
     return std::unexpected(MessageError::CONTROL_PARITY_WRONG);
   }
   auto const controlData = optionalControlData.value();
-  message.control        = static_cast<Byte>(controlData);
+
+  message.control = static_cast<ControlType>(controlData);
 
   // LENGTH
-  auto const optionalLengthData = readVerifiedField(LENGTH_BIT_SIZE, isTargeted);
+  auto const optionalLengthData = readVerifiedField(LENGTH_BITS_SIZE, isTargeted);
   if (not optionalLengthData.has_value()) {
     return std::unexpected(MessageError::LENGTH_PARITY_WRONG);
   }
   auto const lengthData = optionalLengthData.value();
-  message.length        = (lengthData == 0) ? 256 : static_cast<Size>(lengthData);
+
+  message.length = (lengthData == 0) ? 256 : static_cast<Size>(lengthData);
 
   // DATA
   for (Size i = 0; i < message.length; ++i) {
-    auto const optionalData = readVerifiedField(DATA_BIT_SIZE, isTargeted);
+    auto const optionalData = readVerifiedField(DATA_BITS_SIZE, isTargeted);
     if (not optionalData.has_value()) {
       return std::unexpected(MessageError::DATA_PARITY_WRONG);
     }
     auto const data = optionalData.value();
+
     message.data[i] = static_cast<Byte>(data);
   }
 
@@ -132,14 +137,14 @@ auto Controller::writeMessage(Message const& message) const noexcept -> bool {
   m_driver.writeStartBit();
 
   // BROADCAST
-  m_driver.writeBits(static_cast<Bit>(message.broadcast), 1);
+  m_driver.writeBits(static_cast<Data>(message.broadcast), 1);
 
   // MASTER
-  m_driver.writeBits(message.master, ADDRESS_BIT_SIZE);
+  m_driver.writeBits(message.master, ADDRESS_BITS_SIZE);
   m_driver.writeBits(calculateParity(message.master), 1);
 
   // SLAVE
-  m_driver.writeBits(message.slave, ADDRESS_BIT_SIZE);
+  m_driver.writeBits(message.slave, ADDRESS_BITS_SIZE);
   m_driver.writeBits(calculateParity(message.slave), 1);
 
   if (message.broadcast == BroadcastType::FOR_DEVICE) {
@@ -149,12 +154,12 @@ auto Controller::writeMessage(Message const& message) const noexcept -> bool {
     }
 
   } else {
-    m_driver.writeBits(static_cast<Bit>(AckType::NAK), 1);
+    m_driver.writeBits(static_cast<Data>(AckType::NAK), 1);
   }
 
   // CONTROL
-  m_driver.writeBits(message.control, CONTROL_BIT_SIZE);
-  m_driver.writeBits(calculateParity(message.control), 1);
+  m_driver.writeBits(static_cast<Data>(message.control), CONTROL_BITS_SIZE);
+  m_driver.writeBits(calculateParity(static_cast<Data>(message.control)), 1);
 
   if (message.broadcast == BroadcastType::FOR_DEVICE) {
     auto const ackBit = m_driver.readBits(1);
@@ -167,7 +172,7 @@ auto Controller::writeMessage(Message const& message) const noexcept -> bool {
   }
 
   // LENGTH
-  m_driver.writeBits(message.length, LENGTH_BIT_SIZE);
+  m_driver.writeBits(message.length, LENGTH_BITS_SIZE);
   m_driver.writeBits(calculateParity(message.length), 1);
 
   if (message.broadcast == BroadcastType::FOR_DEVICE) {
@@ -181,7 +186,7 @@ auto Controller::writeMessage(Message const& message) const noexcept -> bool {
   }
 
   for (Size i = 0; i < message.length; i++) {
-    m_driver.writeBits(message.data[i], DATA_BIT_SIZE);
+    m_driver.writeBits(message.data[i], DATA_BITS_SIZE);
     m_driver.writeBits(calculateParity(message.data[i]), 1);
 
     if (message.broadcast == BroadcastType::FOR_DEVICE) {
@@ -204,7 +209,8 @@ auto Controller::readVerifiedField(Size const bitSize, bool const sendAck) const
   auto const isValidParity = checkParity(data, parity);
 
   if (sendAck) {
-    m_driver.writeBits(static_cast<Bit>(isValidParity ? AckType::ACK : AckType::NAK), 1);
+    auto const ack = isValidParity ? AckType::ACK : AckType::NAK;
+    m_driver.writeBits(static_cast<Data>(ack), 1);
   } else {
     std::ignore = m_driver.readBits(1);
   }

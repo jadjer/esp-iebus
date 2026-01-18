@@ -24,9 +24,10 @@ namespace iebus {
 
 namespace {
 
-auto constexpr START_BIT_HIGH_US = 170;
+auto constexpr START_BIT_TOTAL_US = 193;
+auto constexpr START_BIT_HIGH_US = 171;
 
-auto constexpr DATA_BIT_TOTAL_US  = 40;
+auto constexpr DATA_BIT_TOTAL_US  = 39;
 auto constexpr DATA_BIT_0_HIGH_US = 33;
 auto constexpr DATA_BIT_1_HIGH_US = 20;
 
@@ -109,7 +110,7 @@ auto Driver::readStartBit() const noexcept -> bool {
   auto constexpr LOWER_LIMIT         = START_BIT_HIGH_US - START_BIT_THRESHOLD;
   auto constexpr UPPER_LIMIT         = START_BIT_HIGH_US + START_BIT_THRESHOLD;
 
-  auto const pulseWidth = capturePulseWidth();
+  auto const pulseWidth = readPulseWidth();
   return (pulseWidth >= LOWER_LIMIT and pulseWidth <= UPPER_LIMIT);
 }
 
@@ -117,7 +118,7 @@ auto Driver::readBits(Size const numBits) const noexcept -> Data {
   Data result = 0;
 
   for (Size i = 0; i < numBits; ++i) {
-    auto const pulseWidth = capturePulseWidth();
+    auto const pulseWidth = readPulseWidth();
     auto const bit        = pulseToBit(pulseWidth);
 
     result = (result << 1) | bit;
@@ -127,47 +128,21 @@ auto Driver::readBits(Size const numBits) const noexcept -> Data {
 }
 
 auto Driver::writeStartBit() const noexcept -> void {
-  auto constexpr START_BIT_TOTAL_US = 192;
-  auto constexpr START_BIT_LOW_US   = START_BIT_TOTAL_US - START_BIT_HIGH_US;
-
-  auto const highDuration = START_BIT_HIGH_US;
-  auto const lowDuration  = START_BIT_LOW_US;
-
-  m_timer.reset();
-
-  ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1));
-
-  while (m_timer.getTime() < highDuration) {}
-
-  ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0));
-
-  while (m_timer.getTime() < lowDuration) {}
+  writePulseWidth(START_BIT_HIGH_US, START_BIT_TOTAL_US);
 }
 
 auto Driver::writeBits(Data const data, Size const numBits) const noexcept -> void {
-  auto constexpr DATA_BIT_0_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_0_HIGH_US;
-  auto constexpr DATA_BIT_1_LOW_US = DATA_BIT_TOTAL_US - DATA_BIT_1_HIGH_US;
-
   for (Size i = 0; i < numBits; ++i) {
     auto const bitPosition = numBits - 1 - i;
     auto const bit         = static_cast<Bit>(data >> bitPosition & 1);
 
     auto const highDuration = bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US;
-    auto const lowDuration  = bit ? DATA_BIT_1_LOW_US : DATA_BIT_0_LOW_US;
 
-    m_timer.reset();
-
-    ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1));
-
-    while (m_timer.getTime() < highDuration) {}
-
-    ESP_ERROR_CHECK(gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0));
-
-    while (m_timer.getTime() < lowDuration) {}
+    writePulseWidth(highDuration, DATA_BIT_TOTAL_US);
   }
 }
 
-auto Driver::capturePulseWidth() const noexcept -> Time {
+auto Driver::readPulseWidth() const noexcept -> Time {
   while (isBusLow()) {}
 
   m_timer.reset();
@@ -175,6 +150,18 @@ auto Driver::capturePulseWidth() const noexcept -> Time {
   while (isBusHigh()) {}
 
   return m_timer.getTime();
+}
+
+auto Driver::writePulseWidth(Time const pulse, Time const frame) const noexcept -> void {
+  m_timer.reset();
+
+  ESP_ERROR_CHECK(gpio_set_level(m_txPin, 1));
+
+  while (m_timer.getTime() < pulse) {}
+
+  ESP_ERROR_CHECK(gpio_set_level(m_txPin, 0));
+
+  while (m_timer.getTime() < frame) {}
 }
 
 } // namespace iebus

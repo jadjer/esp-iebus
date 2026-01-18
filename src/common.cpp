@@ -21,8 +21,10 @@
 namespace iebus {
 
 auto printMessage(Message const& message) -> void {
-  auto const broadcast = message.broadcast == iebus::BroadcastType::FOR_DEVICE ? "D" : "B";
-  printf("%s %03X %03X %01X %hu [", broadcast, message.master, message.slave, message.control, message.length);
+  auto const broadcast = (message.broadcast == BroadcastType::FOR_DEVICE ? "D" : "B");
+  auto const control   = static_cast<Byte>(message.control);
+
+  printf("%s %03X %03X %01X %hu [", broadcast, message.master, message.slave, control, message.length);
   printf("%02X", message.data[0]);
   for (auto i = 1; i < message.length; ++i) {
     printf(" %02X", message.data[i]);
