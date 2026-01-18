@@ -5,9 +5,10 @@ set(INCLUDES
 )
 
 set(SOURCES
+        src/common.cpp
+        
         src/Timer.cpp
         src/Driver.cpp
-        src/Message.cpp
         src/Processor.cpp
         src/Controller.cpp
 )

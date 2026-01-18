@@ -65,7 +65,7 @@ enum class MessageError : Bit {
   CONTROLLER_DISABLED                  = 10,
   START_BIT_READ_ERROR                 = 20,
   START_BIT_ARBITRATION_LOST           = 21,
-  START_BIT_FAILED                     = 22,
+  START_BIT_IS_FALSE                   = 22,
   BROADCAST_BIT_READ_ERROR             = 30,
   MASTER_ADDRESS_DATA_READ_ERROR       = 40,
   MASTER_ADDRESS_PARITY_BIT_READ_ERROR = 41,

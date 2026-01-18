@@ -37,6 +37,4 @@ struct Message {
   Bytes data;
 };
 
-auto printMessage(Message const& message) -> void;
-
 } // namespace iebus

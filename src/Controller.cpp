@@ -56,7 +56,7 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
   // START_BIT
   auto const isStarted = m_driver.readStartBit();
   if (not isStarted) {
-    return std::unexpected(MessageError::START_BIT_FAILED);
+    return std::unexpected(MessageError::START_BIT_IS_FALSE);
   }
 
   Message message = {};

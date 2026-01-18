@@ -24,7 +24,7 @@ namespace iebus {
 
 namespace {
 
-auto constexpr START_BIT_HIGH_US   = 170;
+auto constexpr START_BIT_HIGH_US = 170;
 
 auto constexpr DATA_BIT_TOTAL_US  = 40;
 auto constexpr DATA_BIT_0_HIGH_US = 33;
@@ -106,8 +106,8 @@ auto Driver::disable() noexcept -> void {
 
 auto Driver::readStartBit() const noexcept -> bool {
   auto constexpr START_BIT_THRESHOLD = 20;
-  auto constexpr LOWER_LIMIT  = START_BIT_HIGH_US - START_BIT_THRESHOLD;
-  auto constexpr UPPER_LIMIT  = START_BIT_HIGH_US + START_BIT_THRESHOLD;
+  auto constexpr LOWER_LIMIT         = START_BIT_HIGH_US - START_BIT_THRESHOLD;
+  auto constexpr UPPER_LIMIT         = START_BIT_HIGH_US + START_BIT_THRESHOLD;
 
   auto const pulseWidth = capturePulseWidth();
   return (pulseWidth >= LOWER_LIMIT and pulseWidth <= UPPER_LIMIT);
@@ -127,8 +127,8 @@ auto Driver::readBits(Size const numBits) const noexcept -> Data {
 }
 
 auto Driver::writeStartBit() const noexcept -> void {
-  auto constexpr START_BIT_TOTAL_US  = 192;
-  auto constexpr START_BIT_LOW_US = START_BIT_TOTAL_US - START_BIT_HIGH_US;
+  auto constexpr START_BIT_TOTAL_US = 192;
+  auto constexpr START_BIT_LOW_US   = START_BIT_TOTAL_US - START_BIT_HIGH_US;
 
   auto const highDuration = START_BIT_HIGH_US;
   auto const lowDuration  = START_BIT_LOW_US;

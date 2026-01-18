@@ -20,7 +20,7 @@
 
 #include <iebus/Message.hpp>
 #include <iebus/types.hpp>
-#include <optional>
+#include <vector>
 
 namespace iebus {
 
@@ -29,14 +29,14 @@ public:
   Processor(Address address) noexcept;
 
 public:
-  auto processMessage(Message const& message) noexcept -> std::optional<Message>;
+  auto processMessage(Message const& message) noexcept -> std::vector<Message>;
 
 private:
-  auto handleCommand10(Message const& message) noexcept -> std::optional<Message>;
-  auto handleCommand20(Message const& message) noexcept -> std::optional<Message>;
-  auto handleCommand40(Message const& message) noexcept -> std::optional<Message>;
-  auto handleCommand60(Message const& message) noexcept -> std::optional<Message>;
-  auto handleCommand70(Message const& message) noexcept -> std::optional<Message>;
+  auto handleCommand10(Message const& message) noexcept -> std::vector<Message>;
+  auto handleCommand20(Message const& message) noexcept -> std::vector<Message>;
+  auto handleCommand40(Message const& message) noexcept -> std::vector<Message>;
+  auto handleCommand60(Message const& message) noexcept -> std::vector<Message>;
+  auto handleCommand70(Message const& message) noexcept -> std::vector<Message>;
 
 private:
   [[nodiscard]] auto createResponse(Address target, Size length, Bytes payload) const noexcept -> Message;

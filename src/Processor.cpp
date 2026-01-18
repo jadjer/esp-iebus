@@ -23,59 +23,80 @@ namespace iebus {
 Processor::Processor(Address const address) noexcept : m_address(address), m_isRegistered(false) {
 }
 
-auto Processor::processMessage(Message const& message) noexcept -> std::optional<Message> {
+auto Processor::processMessage(Message const& message) noexcept -> std::vector<Message> {
   auto const command = message.data[0];
 
   if (command == 10) {
     m_isRegistered = true;
-    handleCommand10(message);
+    return handleCommand10(message);
   }
 
   if (not m_isRegistered) {
-    return Message{BroadcastType::BROADCAST, m_address, 0xFFF, static_cast<Byte>(ControlType::WRITE_COMMAND), 1, {0x12}};
+    return {
+        Message{BroadcastType::BROADCAST, m_address, 0xFFF, static_cast<Byte>(ControlType::WRITE_COMMAND), 1, {0x12}},
+    };
   }
 
   switch (command) {
-  case 0x20:
-    return handleCommand20(message);
-  case 0x40:
-    return handleCommand40(message);
-  case 0x60:
-    return handleCommand60(message);
-  case 0x70:
-    return handleCommand70(message);
-  default:
-    return std::nullopt;
+  case 0x20: return handleCommand20(message);
+  case 0x40: return handleCommand40(message);
+  case 0x60: return handleCommand60(message);
+  case 0x70: return handleCommand70(message);
+  default: return {};
   }
 }
 
-auto Processor::handleCommand10(Message const& message) noexcept -> std::optional<Message> {
+auto Processor::handleCommand10(Message const& message) noexcept -> std::vector<Message> {
   auto const uniqueValue = message.data[1];
 
-  return createResponse(message.master, 6, {0x11, uniqueValue, 0x01, 0x02, 0x85, 0x93});
+  return {
+      createResponse(message.master, 6, {0x11, uniqueValue, 0x01, 0x02, 0x85, 0x93}),
+  };
 }
 
-auto Processor::handleCommand20(Message const& message) noexcept -> std::optional<Message> {
+auto Processor::handleCommand20(Message const& message) noexcept -> std::vector<Message> {
   auto const command = message.data[0];
-  auto const index = message.data[1];
+  auto const index   = message.data[1];
 
   if (command == 0x20 and index == 0x02) {
-    return createResponse(message.master, 4, {0x40, 0xC0, 0x20, 0x02});
+    return {
+        createResponse(message.master, 4, {0x40, 0xC0, 0x20, 0x02}),
+
+        createResponse(message.master, 3, {0x40, 0x12, 0x10}),
+        createResponse(message.master, 3, {0x40, 0x06, 0x10}),
+        createResponse(message.master, 3, {0x40, 0xC0, 0x10}),
+        createResponse(message.master, 3, {0x40, 0x83, 0x10}),
+
+        createResponse(message.master, 3, {0x40, 0x12, 0x00}),
+        createResponse(message.master, 3, {0x40, 0x06, 0x00}),
+        createResponse(message.master, 3, {0x40, 0xC0, 0x00}),
+        createResponse(message.master, 3, {0x40, 0x83, 0x00}),
+
+        createResponse(message.master, 4, {0x40, 0x12, 0x02, 0x00}),
+
+        createResponse(message.master, 5, {0x40, 0x06, 0x02, 0x00, 0x01}),
+        createResponse(message.master, 5, {0x40, 0x06, 0x02, 0x00, 0x02}),
+        createResponse(message.master, 5, {0x40, 0x06, 0x02, 0x00, 0x02}),
+        createResponse(message.master, 5, {0x40, 0x06, 0x02, 0x00, 0x10}),
+
+        createResponse(message.master, 2, {0x13, 0xFF}),
+        createResponse(message.master, 4, {0xD0, 0x31, 0x0B, 0x00}),
+    };
   }
 
-  return std::nullopt;
+  return {};
 }
 
-auto Processor::handleCommand40(Message const& message) noexcept -> std::optional<Message> {
-  return std::nullopt;
+auto Processor::handleCommand40(Message const& message) noexcept -> std::vector<Message> {
+  return {};
 }
 
-auto Processor::handleCommand60(Message const& message) noexcept -> std::optional<Message> {
-  return std::nullopt;
+auto Processor::handleCommand60(Message const& message) noexcept -> std::vector<Message> {
+  return {};
 }
 
-auto Processor::handleCommand70(Message const& message) noexcept -> std::optional<Message> {
-  return std::nullopt;
+auto Processor::handleCommand70(Message const& message) noexcept -> std::vector<Message> {
+  return {};
 }
 
 auto Processor::createResponse(Address const target, Size const length, Bytes const payload) const noexcept -> Message {
