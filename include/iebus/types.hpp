@@ -61,4 +61,35 @@ enum class ControlType : Byte {
   WRITE_DATA                   = 0xF,
 };
 
+enum class MessageError : Bit {
+  CONTROLLER_DISABLED                  = 10,
+  START_BIT_READ_ERROR                 = 20,
+  START_BIT_ARBITRATION_LOST           = 21,
+  START_BIT_FAILED                     = 22,
+  BROADCAST_BIT_READ_ERROR             = 30,
+  MASTER_ADDRESS_DATA_READ_ERROR       = 40,
+  MASTER_ADDRESS_PARITY_BIT_READ_ERROR = 41,
+  MASTER_ADDRESS_PARITY_WRONG          = 42,
+  SLAVE_ADDRESS_DATA_READ_ERROR        = 50,
+  SLAVE_ADDRESS_PARITY_BIT_READ_ERROR  = 51,
+  SLAVE_ADDRESS_PARITY_WRONG           = 52,
+  SLAVE_ADDRESS_ACK_BIT_READ_ERROR     = 53,
+  SLAVE_ADDRESS_ACK_WRONG              = 54,
+  CONTROL_DATA_READ_ERROR              = 60,
+  CONTROL_PARITY_BIT_READ_ERROR        = 61,
+  CONTROL_PARITY_WRONG                 = 62,
+  CONTROL_ACK_BIT_READ_ERROR           = 63,
+  CONTROL_ACK_WRONG                    = 64,
+  LENGTH_DATA_READ_ERROR               = 70,
+  LENGTH_PARITY_BIT_READ_ERROR         = 71,
+  LENGTH_PARITY_WRONG                  = 72,
+  LENGTH_ACK_BIT_READ_ERROR            = 73,
+  LENGTH_ACK_WRONG                     = 74,
+  DATA_READ_ERROR                      = 80,
+  DATA_PARITY_BIT_READ_ERROR           = 81,
+  DATA_PARITY_WRONG                    = 82,
+  DATA_ACK_BIT_READ_ERROR              = 83,
+  DATA_ACK_WRONG                       = 84,
+};
+
 } // namespace iebus

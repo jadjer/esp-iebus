@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <optional>
+#include <expected>
 
 #include <iebus/Driver.hpp>
 #include <iebus/Message.hpp>
@@ -42,13 +42,13 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() const noexcept -> std::optional<Message>;
+  [[nodiscard]] auto readMessage() const noexcept -> std::expected<Message, MessageError>;
   /**
    * Write a message to IEBus
    * @param message Message
    * @return bool
    */
-  [[nodiscard]] [[maybe_unused]] auto writeMessage(Message const& message) const noexcept -> bool;
+  [[nodiscard]] auto writeMessage(Message const& message) const noexcept -> bool;
 
 private:
   /**

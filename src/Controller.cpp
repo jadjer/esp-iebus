@@ -48,15 +48,15 @@ auto checkParity(Data const data, Bit const parity) -> bool {
 Controller::Controller(Driver const& driver, Address const address) noexcept : m_address(address), m_driver(driver) {
 }
 
-auto Controller::readMessage() const noexcept -> std::optional<Message> {
+auto Controller::readMessage() const noexcept -> std::expected<Message, MessageError> {
   if (not m_driver.isEnabled()) {
-    return std::nullopt;
+    return std::unexpected(MessageError::CONTROLLER_DISABLED);
   }
 
   // START_BIT
   auto const isStarted = m_driver.readStartBit();
   if (not isStarted) {
-    return std::nullopt;
+    return std::unexpected(MessageError::START_BIT_FAILED);
   }
 
   Message message = {};
@@ -70,7 +70,7 @@ auto Controller::readMessage() const noexcept -> std::optional<Message> {
   auto const masterParityBit     = m_driver.readBits(1);
   auto const isValidMasterParity = checkParity(masterData, masterParityBit);
   if (not isValidMasterParity) {
-    return std::nullopt;
+    return std::unexpected(MessageError::MASTER_ADDRESS_PARITY_WRONG);
   }
   message.master = static_cast<Address>(masterData);
 
@@ -89,13 +89,13 @@ auto Controller::readMessage() const noexcept -> std::optional<Message> {
   }
 
   if (not isValidSlaveParity) {
-    return std::nullopt;
+    return std::unexpected(MessageError::SLAVE_ADDRESS_PARITY_WRONG);
   }
 
   // CONTROL
   auto const optionalControlData = readVerifiedField(CONTROL_BIT_SIZE, isTargeted);
   if (not optionalControlData.has_value()) {
-    return std::nullopt;
+    return std::unexpected(MessageError::CONTROL_PARITY_WRONG);
   }
   auto const controlData = optionalControlData.value();
   message.control        = static_cast<Byte>(controlData);
@@ -103,7 +103,7 @@ auto Controller::readMessage() const noexcept -> std::optional<Message> {
   // LENGTH
   auto const optionalLengthData = readVerifiedField(LENGTH_BIT_SIZE, isTargeted);
   if (not optionalLengthData.has_value()) {
-    return std::nullopt;
+    return std::unexpected(MessageError::LENGTH_PARITY_WRONG);
   }
   auto const lengthData = optionalLengthData.value();
   message.length        = (lengthData == 0) ? 256 : static_cast<Size>(lengthData);
@@ -112,7 +112,7 @@ auto Controller::readMessage() const noexcept -> std::optional<Message> {
   for (Size i = 0; i < message.length; ++i) {
     auto const optionalData = readVerifiedField(DATA_BIT_SIZE, isTargeted);
     if (not optionalData.has_value()) {
-      return std::nullopt;
+      return std::unexpected(MessageError::DATA_PARITY_WRONG);
     }
     auto const data = optionalData.value();
     message.data[i] = static_cast<Byte>(data);
