@@ -19,13 +19,14 @@
 #include "iebus/Driver.hpp"
 
 #include <driver/gpio.h>
+#include <esp_attr.h>
 
 namespace iebus {
 
 namespace {
 
 auto constexpr START_BIT_TOTAL_US = 193;
-auto constexpr START_BIT_HIGH_US = 171;
+auto constexpr START_BIT_HIGH_US  = 171;
 
 auto constexpr DATA_BIT_TOTAL_US  = 39;
 auto constexpr DATA_BIT_0_HIGH_US = 33;
@@ -38,13 +39,14 @@ auto constexpr pulseToBit(Time const pulseWidth) noexcept -> Bit {
 
 } // namespace
 
-Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(rx), m_txPin(tx), m_enablePin(enable), m_enable(false), m_timer() {
+Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept
+    : m_rxPin(rx), m_txPin(tx), m_enablePin(enable), m_enable(false), m_timer(), m_filter(nullptr), m_semaphore(xSemaphoreCreateBinary()) {
   gpio_config_t const inputConfiguration = {
       .pin_bit_mask = (1ULL << m_rxPin),
       .mode         = GPIO_MODE_INPUT,
       .pull_up_en   = GPIO_PULLUP_DISABLE,
-      .pull_down_en = GPIO_PULLDOWN_DISABLE,
-      .intr_type    = GPIO_INTR_DISABLE,
+      .pull_down_en = GPIO_PULLDOWN_ENABLE,
+      .intr_type    = GPIO_INTR_ANYEDGE,
   };
   ESP_ERROR_CHECK(gpio_config(&inputConfiguration));
 
@@ -52,10 +54,19 @@ Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(
       .pin_bit_mask = (1ULL << m_txPin) | (1ULL << m_enablePin),
       .mode         = GPIO_MODE_OUTPUT,
       .pull_up_en   = GPIO_PULLUP_DISABLE,
-      .pull_down_en = GPIO_PULLDOWN_DISABLE,
+      .pull_down_en = GPIO_PULLDOWN_ENABLE,
       .intr_type    = GPIO_INTR_DISABLE,
   };
   ESP_ERROR_CHECK(gpio_config(&outputConfiguration));
+
+  gpio_pin_glitch_filter_config_t filterConfiguration = {
+      .clk_src  = GLITCH_FILTER_CLK_SRC_DEFAULT,
+      .gpio_num = m_rxPin,
+  };
+  ESP_ERROR_CHECK(gpio_new_pin_glitch_filter(&filterConfiguration, &m_filter));
+  ESP_ERROR_CHECK(gpio_glitch_filter_enable(m_filter));
+
+  ESP_ERROR_CHECK_WITHOUT_ABORT(gpio_install_isr_service(0));
 }
 
 auto Driver::isEnabled() const noexcept -> bool {
@@ -83,14 +94,22 @@ auto Driver::isBusFree() const noexcept -> bool {
   return false;
 }
 
+auto Driver::waitBusBusy() const noexcept -> void {
+  while (isBusHigh()) {
+    xSemaphoreTake(m_semaphore, portMAX_DELAY);
+  }
+}
+
 auto Driver::enable() noexcept -> void {
   ESP_ERROR_CHECK(gpio_set_level(m_txPin, 0));
   ESP_ERROR_CHECK(gpio_set_level(m_enablePin, 1));
 
-  while (isBusHigh()) {}
+  waitBusBusy();
 
   m_timer.enable();
   m_timer.start();
+
+  ESP_ERROR_CHECK(gpio_isr_handler_add(m_rxPin, gpioIsrHandler, this));
 
   m_enable = true;
 }
@@ -101,6 +120,8 @@ auto Driver::disable() noexcept -> void {
 
   m_timer.stop();
   m_timer.disable();
+
+  ESP_ERROR_CHECK(gpio_isr_handler_remove(m_rxPin));
 
   m_enable = false;
 }
@@ -143,11 +164,13 @@ auto Driver::writeBits(Data const data, Size const numBits) const noexcept -> vo
 }
 
 auto Driver::readPulseWidth() const noexcept -> Time {
-  while (isBusLow()) {}
+  while (isBusLow()) {
+    xSemaphoreTake(m_semaphore, portMAX_DELAY);
+  }
 
   m_timer.reset();
 
-  while (isBusHigh()) {}
+  waitBusBusy();
 
   return m_timer.getTime();
 }
@@ -162,6 +185,18 @@ auto Driver::writePulseWidth(Time const pulse, Time const frame) const noexcept 
   ESP_ERROR_CHECK(gpio_set_level(m_txPin, 0));
 
   while (m_timer.getTime() < frame) {}
+}
+
+void IRAM_ATTR Driver::gpioIsrHandler(void* arg) {
+  auto& self = *static_cast<Driver*>(arg);
+
+  BaseType_t highTaskWakeup = pdFALSE;
+
+  xSemaphoreGiveFromISR(self.m_semaphore, &highTaskWakeup);
+
+  if (highTaskWakeup) {
+    portYIELD_FROM_ISR();
+  }
 }
 
 } // namespace iebus

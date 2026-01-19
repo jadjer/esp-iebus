@@ -20,6 +20,9 @@
 
 #include <optional>
 
+#include <driver/gpio_filter.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <iebus/Timer.hpp>
 #include <iebus/types.hpp>
 
@@ -33,6 +36,10 @@ namespace iebus {
  * IEBus Driver
  */
 class Driver {
+private:
+  using Filter    = gpio_glitch_filter_handle_t;
+  using Semaphore = SemaphoreHandle_t;
+
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
 
@@ -57,6 +64,9 @@ public:
    * @return bool
    */
   [[nodiscard]] auto isBusFree() const noexcept -> bool;
+
+public:
+  auto waitBusBusy() const noexcept -> void;
 
 public:
   /**
@@ -103,6 +113,9 @@ private:
   auto writePulseWidth(Time pulse, Time frame) const noexcept -> void;
 
 private:
+  static auto gpioIsrHandler(void* arg) -> void;
+
+private:
   Pin const m_rxPin;
   Pin const m_txPin;
   Pin const m_enablePin;
@@ -110,6 +123,8 @@ private:
 private:
   bool m_enable;
   Timer m_timer;
+  Filter m_filter;
+  Semaphore m_semaphore;
 };
 
 } // namespace iebus

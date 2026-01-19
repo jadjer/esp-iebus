@@ -48,7 +48,7 @@ auto checkParity(Data const data, Bit const parity) -> bool {
 Controller::Controller(Driver const& driver, Address const address) noexcept : m_address(address), m_driver(driver) {
 }
 
-auto Controller::readMessage() const noexcept -> std::expected<Message, MessageError> {
+auto Controller::readMessage() noexcept -> std::expected<Message, MessageError> {
   if (not m_driver.isEnabled()) {
     return std::unexpected(MessageError::CONTROLLER_DISABLED);
   }
@@ -59,7 +59,12 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
     return std::unexpected(MessageError::START_BIT_IS_FALSE);
   }
 
-  Message message = {};
+  Message message = {
+//      BroadcastType::BROADCAST, 0x130, 0xFFF, ControlType::WRITE_COMMAND, 3, {0x10, 0x1A, 0x01}
+//      BroadcastType::BROADCAST, 0x130, 0xFFF, ControlType::WRITE_COMMAND, 12, {0x60, 0xC0, 0x00, 0x4F, 0xFF, 0x00, 0x00, 0x22, 0x00, 0x22, 0x00, 0x00}
+  };
+
+//  return message;
 
   // BROADCAST
   auto const broadcastBit = m_driver.readBits(1);
@@ -126,7 +131,7 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
   return message;
 }
 
-auto Controller::writeMessage(Message const& message) const noexcept -> bool {
+auto Controller::writeMessage(Message const& message) noexcept -> bool {
   if (not m_driver.isEnabled()) {
     return false;
   }
@@ -200,10 +205,12 @@ auto Controller::writeMessage(Message const& message) const noexcept -> bool {
     }
   }
 
+  m_driver.waitBusBusy();
+
   return true;
 }
 
-auto Controller::readVerifiedField(Size const bitSize, bool const sendAck) const noexcept -> std::optional<Data> {
+auto Controller::readVerifiedField(Size const bitSize, bool const sendAck) noexcept -> std::optional<Data> {
   auto const data          = m_driver.readBits(bitSize);
   auto const parity        = m_driver.readBits(1);
   auto const isValidParity = checkParity(data, parity);

@@ -42,13 +42,13 @@ public:
    * Read the message from IEBus
    * @return Optional message
    */
-  [[nodiscard]] auto readMessage() const noexcept -> std::expected<Message, MessageError>;
+  [[nodiscard]] auto readMessage() noexcept -> std::expected<Message, MessageError>;
   /**
    * Write a message to IEBus
    * @param message Message
    * @return bool
    */
-  [[nodiscard]] auto writeMessage(Message const& message) const noexcept -> bool;
+  [[nodiscard]] auto writeMessage(Message const& message) noexcept -> bool;
 
 private:
   /**
@@ -57,7 +57,7 @@ private:
    * @param sendAck
    * @return
    */
-  [[nodiscard]] auto readVerifiedField(Size bitSize, bool sendAck) const noexcept -> std::optional<Data>;
+  [[nodiscard]] auto readVerifiedField(Size bitSize, bool sendAck) noexcept -> std::optional<Data>;
 
 private:
   Address const m_address;
