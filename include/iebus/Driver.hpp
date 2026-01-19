@@ -21,8 +21,6 @@
 #include <optional>
 
 #include <driver/gpio_filter.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
 #include <iebus/Timer.hpp>
 #include <iebus/types.hpp>
 
@@ -37,8 +35,7 @@ namespace iebus {
  */
 class Driver {
 private:
-  using Filter    = gpio_glitch_filter_handle_t;
-  using Semaphore = SemaphoreHandle_t;
+  using Filter = gpio_glitch_filter_handle_t;
 
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
@@ -66,9 +63,6 @@ public:
   [[nodiscard]] auto isBusFree() const noexcept -> bool;
 
 public:
-  auto waitBusBusy() const noexcept -> void;
-
-public:
   /**
    * Enable IEBus transmitter
    */
@@ -87,6 +81,13 @@ public:
    */
   [[nodiscard]] auto readBits(Size numBits) const noexcept -> Data;
 
+private:
+  /**
+   * Read pulse width
+   * @return Pulse width
+   */
+  [[nodiscard]] auto readPulseWidth() const noexcept -> Time;
+
 public:
   /**
    * Get start bit from IEBus
@@ -102,18 +103,10 @@ public:
 
 private:
   /**
-   * Read pulse width
-   * @return Pulse width
-   */
-  [[nodiscard]] auto readPulseWidth() const noexcept -> Time;
-  /**
    * Write pulse width
    * @param pulseWidth
    */
   auto writePulseWidth(Time pulse, Time frame) const noexcept -> void;
-
-private:
-  static auto gpioIsrHandler(void* arg) -> void;
 
 private:
   Pin const m_rxPin;
@@ -121,10 +114,11 @@ private:
   Pin const m_enablePin;
 
 private:
-  bool m_enable;
+  bool m_enable   = false;
+  Filter m_filter = nullptr;
+
+private:
   Timer m_timer;
-  Filter m_filter;
-  Semaphore m_semaphore;
 };
 
 } // namespace iebus

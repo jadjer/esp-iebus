@@ -205,8 +205,6 @@ auto Controller::writeMessage(Message const& message) noexcept -> bool {
     }
   }
 
-  m_driver.waitBusBusy();
-
   return true;
 }
 

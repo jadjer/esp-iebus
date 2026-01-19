@@ -6,7 +6,7 @@ set(INCLUDES
 
 set(SOURCES
         src/common.cpp
-        
+
         src/Timer.cpp
         src/Driver.cpp
         src/Processor.cpp

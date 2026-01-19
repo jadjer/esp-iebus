@@ -27,17 +27,13 @@ auto constexpr DEFAULT_RESOLUTION_HZ = 1 * 1000 * 1000;
 } // namespace
 
 Timer::Timer() : m_timer(nullptr) {
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-
   gptimer_config_t const timerConfig = {
       .clk_src       = GPTIMER_CLK_SRC_DEFAULT,
       .direction     = GPTIMER_COUNT_UP,
       .resolution_hz = DEFAULT_RESOLUTION_HZ,
+      .intr_priority = 0,
+      .flags         = {},
   };
-
-#pragma GCC diagnostic pop
 
   ESP_ERROR_CHECK(gptimer_new_timer(&timerConfig, &m_timer));
 }
