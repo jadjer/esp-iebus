@@ -206,8 +206,9 @@ auto Driver::writePulseWidth(Time const pulse, Time const frame) noexcept -> voi
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
   while ((esp_timer_get_time() - startTime) < pulse) {}
 
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
   m_lowLevelStartTime = esp_timer_get_time();
+
+  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
   while ((esp_timer_get_time() - startTime) < frame) {}
 }
 
