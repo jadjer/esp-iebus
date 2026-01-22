@@ -24,22 +24,40 @@
 
 namespace iebus {
 
+enum class Command : Bit {
+  START      = 0x10,
+  REGISTER   = 0x11,
+  RESTART    = 0x12,
+  COMMAND_20 = 0x20,
+  COMMAND_40 = 0x40,
+  COMMAND_60 = 0x60,
+};
+
 class Processor {
+public:
+  using MessageList = std::vector<Message>;
+
 public:
   Processor(Address address) noexcept;
 
 public:
-  [[nodiscard]] auto processMessage(Message const& message) noexcept -> std::vector<Message>;
+  [[nodiscard]] auto processMessage(Message const& message) noexcept -> MessageList;
 
 private:
-  [[nodiscard]] auto handleCommand10(Message const& message) noexcept -> std::vector<Message>;
-  [[nodiscard]] auto handleCommand20(Message const& message) noexcept -> std::vector<Message>;
-  [[nodiscard]] auto handleCommand40(Message const& message) noexcept -> std::vector<Message>;
-  [[nodiscard]] auto handleCommand60(Message const& message) noexcept -> std::vector<Message>;
-  [[nodiscard]] auto handleCommand70(Message const& message) noexcept -> std::vector<Message>;
+  [[nodiscard]] auto handleCommandStart(Message const& message) noexcept -> MessageList;
+  [[nodiscard]] auto handleCommand20(Message const& message) noexcept -> MessageList;
+  [[nodiscard]] auto handleCommand40(Message const& message) noexcept -> MessageList;
+  [[nodiscard]] auto handleCommand60(Message const& message) noexcept -> MessageList;
 
 private:
-  [[nodiscard]] auto createResponse(Address target, Size length, Bytes payload) const noexcept -> Message;
+  [[nodiscard]] auto createCommandRestart() const noexcept -> MessageList;
+
+private:
+  [[nodiscard]] auto checkSlaveAddress(Message const& message) const -> bool;
+
+private:
+  [[nodiscard]] auto createCommand(Address target, Bytes data, Size length) const noexcept -> Message;
+  [[nodiscard]] auto createBroadcastCommand(Bytes data, Size length) const noexcept -> Message;
 
 private:
   Address const m_address;

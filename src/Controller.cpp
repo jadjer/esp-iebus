@@ -61,12 +61,17 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
     return std::unexpected(MessageError::START_BIT_IS_FALSE);
   }
 
-  Message message = {
-      //      BroadcastType::BROADCAST, 0x130, 0xFFF, ControlType::WRITE_COMMAND, 3,{0x10, 0x1A, 0x01}
-      //            BroadcastType::BROADCAST, 0x130, 0xFFF, ControlType::WRITE_COMMAND, 12, {0x60, 0xC0, 0x00, 0x4F, 0xFF, 0x00, 0x00, 0x22, 0x00, 0x22, 0x00, 0x00}
-  };
+  Message message = {};
 
-  //    return message;
+//  Message message = {
+//      BroadcastType::BROADCAST, 0x130, 0xFFF, ControlType::WRITE_COMMAND, 3,{0x10, 0x1A, 0x01}
+//  };
+
+//  Message message = {
+//      BroadcastType::BROADCAST, 0x130, 0xFFF, ControlType::WRITE_COMMAND, 12, {0x60, 0xC0, 0x00, 0x4F, 0xFF, 0x00, 0x00, 0x22, 0x00, 0x22, 0x00, 0x00}
+//  };
+
+//  return message;
 
   // BROADCAST
   auto const optionalBroadcastBit = m_driver.readBits(1);
@@ -151,7 +156,7 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
   }
   auto const lengthData = expectedLengthData.value();
 
-  message.length = (lengthData == 0) ? 256 : static_cast<Size>(lengthData);
+  message.length = ((lengthData == 0) ? 256 : static_cast<Size>(lengthData));
 
   // DATA
   for (auto& messageData : message.data | std::views::take(message.length)) {
@@ -188,7 +193,7 @@ auto Controller::readField(Size const bitSize, bool const sendAck) const noexcep
   auto const isValidParity = checkParity(data, parity);
 
   if (sendAck) {
-    auto const ack = isValidParity ? AckType::ACK : AckType::NAK;
+    auto const ack = (isValidParity ? AckType::ACK : AckType::NAK);
 
     m_driver.writeBits(static_cast<Data>(ack), 1);
   } else {

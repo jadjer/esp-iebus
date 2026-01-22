@@ -20,89 +20,84 @@
 
 namespace iebus {
 
+namespace {
+
+Address constexpr BROADCAST_ADDRESS = 0xFFF;
+
+} // namespace
+
 Processor::Processor(Address const address) noexcept : m_address(address), m_isRegistered(false) {
 }
 
-auto Processor::processMessage(Message const& message) noexcept -> std::vector<Message> {
-  auto const command = message.data[0];
+auto Processor::processMessage(Message const& message) noexcept -> MessageList {
+  if (not checkSlaveAddress(message)) {
+    return {};
+  }
 
-  if (command == 0x10) {
+  auto const command = static_cast<Command>(message.data[0]);
+
+  if (command == Command::START) {
     m_isRegistered = true;
-    return handleCommand10(message);
+    return handleCommandStart(message);
   }
 
   if (not m_isRegistered) {
-    return {
-        Message{BroadcastType::BROADCAST, m_address, 0xFFF, ControlType::WRITE_COMMAND, 1, {0x12}},
-    };
+    return createCommandRestart();
   }
 
   switch (command) {
-    //  case 0x20: return handleCommand20(message);
-    //  case 0x40: return handleCommand40(message);
-    //  case 0x60: return handleCommand60(message);
-    //  case 0x70: return handleCommand70(message);
+  case Command::COMMAND_20: return handleCommand20(message);
+  case Command::COMMAND_40: return handleCommand40(message);
+  case Command::COMMAND_60: return handleCommand60(message);
   default: return {};
   }
 }
 
-auto Processor::handleCommand10(Message const& message) noexcept -> std::vector<Message> {
-  auto const uniqueValue = message.data[1];
+auto Processor::handleCommandStart(Message const& message) noexcept -> MessageList {
+  auto const masterAddress = message.master;
+  auto const commandBit = static_cast<Bit>(Command::REGISTER);
+  auto const uniqueBit = message.data[1];
 
   return {
-      createResponse(message.master, 6, {0x11, uniqueValue, 0x01, 0x02, 0x85, 0x93}),
+      createCommand(masterAddress, {commandBit, uniqueBit, 0x01, 0x02, 0x85, 0x93}, 6),
   };
 }
 
-auto Processor::handleCommand20(Message const& message) noexcept -> std::vector<Message> {
-  auto const command = message.data[0];
-  auto const index   = message.data[1];
-
-  if (command == 0x20 and index == 0x02) {
-    return {
-        createResponse(message.master, 4, {0x40, 0xC0, 0x20, 0x02}),
-
-        createResponse(message.master, 3, {0x40, 0x12, 0x10}),
-        createResponse(message.master, 3, {0x40, 0x06, 0x10}),
-        createResponse(message.master, 3, {0x40, 0xC0, 0x10}),
-        createResponse(message.master, 3, {0x40, 0x83, 0x10}),
-
-        createResponse(message.master, 3, {0x40, 0x12, 0x00}),
-        createResponse(message.master, 3, {0x40, 0x06, 0x00}),
-        createResponse(message.master, 3, {0x40, 0xC0, 0x00}),
-        createResponse(message.master, 3, {0x40, 0x83, 0x00}),
-
-        createResponse(message.master, 4, {0x40, 0x12, 0x02, 0x00}),
-
-        createResponse(message.master, 5, {0x40, 0x06, 0x02, 0x00, 0x01}),
-        createResponse(message.master, 5, {0x40, 0x06, 0x02, 0x00, 0x02}),
-        createResponse(message.master, 5, {0x40, 0x06, 0x02, 0x00, 0x02}),
-        createResponse(message.master, 5, {0x40, 0x06, 0x02, 0x00, 0x10}),
-
-        createResponse(message.master, 2, {0x13, 0xFF}),
-        createResponse(message.master, 4, {0xD0, 0x31, 0x0B, 0x00}),
-    };
-  }
-
+auto Processor::handleCommand20(Message const& message) noexcept -> MessageList {
   return {};
 }
 
-auto Processor::handleCommand40(Message const& message) noexcept -> std::vector<Message> {
+auto Processor::handleCommand40(Message const& message) noexcept -> MessageList {
   return {};
 }
 
-auto Processor::handleCommand60(Message const& message) noexcept -> std::vector<Message> {
+auto Processor::handleCommand60(Message const& message) noexcept -> MessageList {
   return {};
 }
 
-auto Processor::handleCommand70(Message const& message) noexcept -> std::vector<Message> {
-  return {};
-}
+auto Processor::createCommandRestart() const noexcept -> MessageList {
+  auto const commandBit = static_cast<Bit>(Command::RESTART);
 
-auto Processor::createResponse(Address const target, Size const length, Bytes const payload) const noexcept -> Message {
-  return Message{
-      BroadcastType::FOR_DEVICE, m_address, target, ControlType::WRITE_COMMAND, length, payload,
+  return {
+      createBroadcastCommand({commandBit}, 1),
   };
+}
+
+auto Processor::checkSlaveAddress(Message const& message) const -> bool {
+  auto const slave = message.slave;
+
+  if (slave == BROADCAST_ADDRESS) return true;
+  if (slave == m_address) return true;
+
+  return false;
+}
+
+auto Processor::createCommand(Address const target, Bytes data, Size length) const noexcept -> Message {
+  return Message{.broadcast = BroadcastType::FOR_DEVICE, .master = m_address, .slave = target, .control = ControlType::WRITE_COMMAND, .length = length, .data = data};
+}
+
+auto Processor::createBroadcastCommand(Bytes data, Size length) const noexcept -> Message {
+  return Message{.broadcast = BroadcastType::BROADCAST, .master = m_address, .slave = BROADCAST_ADDRESS, .control = ControlType::WRITE_COMMAND, .length = length, .data = data};
 }
 
 } // namespace iebus

@@ -89,7 +89,7 @@ private:
    * Read pulse width
    * @return Pulse width
    */
-  [[nodiscard]] auto readPulseWidth(Time timeout, Time timeoutThreshold) noexcept -> std::optional<Time>;
+  [[nodiscard]] auto readPulseWidth(Time timeout) noexcept -> std::optional<Time>;
 
 public:
   /**
@@ -112,24 +112,6 @@ private:
   auto writePulseWidth(Time pulse, Time frame) noexcept -> void;
 
 private:
-  /**
-   * Get timer after reset
-   * @return
-   */
-  [[nodiscard]] auto getTime() const noexcept -> Time;
-  /**
-   * Reset time
-   */
-  auto resetTime() noexcept -> void;
-
-private:
-  /**
-   * Interrupt function
-   * @param arg
-   */
-  static auto isrHandle(void* arg) noexcept -> void;
-
-private:
   Pin const m_rxPin;
   Pin const m_txPin;
   Pin const m_enablePin;
@@ -137,7 +119,6 @@ private:
 private:
   bool m_enable            = false;
   Filter m_filter          = nullptr;
-  Time m_resetTime         = 0;
   Time m_lowLevelStartTime = 0;
 };
 
