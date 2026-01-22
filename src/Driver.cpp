@@ -31,10 +31,10 @@ namespace {
 Time constexpr START_BIT_TOTAL_US = 190;
 Time constexpr START_BIT_HIGH_US  = 170;
 
-Time constexpr DATA_BIT_TOTAL_US  = 40;
-Time constexpr DATA_BIT_0_HIGH_US = 33;
-Time constexpr DATA_BIT_1_HIGH_US = 20;
-Time constexpr DATA_BIT_THRESHOLD = 5;
+Time constexpr DATA_BIT_TOTAL_US     = 40;
+Time constexpr DATA_BIT_0_HIGH_US    = 33;
+Time constexpr DATA_BIT_1_HIGH_US    = 20;
+Time constexpr DATA_BIT_THRESHOLD_US = 5;
 
 template <typename T> auto constexpr inRange(T const a, T const b, T const threshold) -> bool {
   auto const [min, max] = std::minmax(a, b);
@@ -44,8 +44,8 @@ template <typename T> auto constexpr inRange(T const a, T const b, T const thres
 }
 
 auto constexpr pulseToBit(Time const pulseWidth) noexcept -> std::optional<Bit> {
-  if (inRange(pulseWidth, DATA_BIT_0_HIGH_US, DATA_BIT_THRESHOLD)) return 0;
-  if (inRange(pulseWidth, DATA_BIT_1_HIGH_US, DATA_BIT_THRESHOLD)) return 1;
+  if (inRange(pulseWidth, DATA_BIT_0_HIGH_US, DATA_BIT_THRESHOLD_US)) return 0;
+  if (inRange(pulseWidth, DATA_BIT_1_HIGH_US, DATA_BIT_THRESHOLD_US)) return 1;
 
   return std::nullopt;
 }
@@ -97,7 +97,7 @@ auto Driver::isBusLow() const noexcept -> bool {
 }
 
 auto Driver::isBusFree() const noexcept -> bool {
-  Time constexpr BUS_FREE_INTERVAL = (DATA_BIT_TOTAL_US * 10);
+  Time constexpr BUS_FREE_INTERVAL_US = 400;
 
   if (isBusHigh()) {
     return false;
@@ -105,7 +105,7 @@ auto Driver::isBusFree() const noexcept -> bool {
 
   auto const currentTime    = esp_timer_get_time();
   auto const differenceTime = (currentTime - m_lowLevelStartTime);
-  auto const isFree         = (differenceTime > BUS_FREE_INTERVAL);
+  auto const isFree         = (differenceTime >= BUS_FREE_INTERVAL_US);
 
   return isFree;
 }
@@ -126,9 +126,8 @@ auto Driver::disable() noexcept -> void {
 
 auto Driver::readStartBit() noexcept -> bool {
   Time constexpr START_BIT_THRESHOLD = 20;
-  Time constexpr START_BIT_TIMEOUT   = (START_BIT_TOTAL_US + START_BIT_THRESHOLD);
 
-  auto const optionalPulseWidth = readPulseWidth(START_BIT_TIMEOUT);
+  auto const optionalPulseWidth = readPulseWidth(START_BIT_TOTAL_US);
   if (not optionalPulseWidth.has_value()) {
     return false;
   }
@@ -140,12 +139,10 @@ auto Driver::readStartBit() noexcept -> bool {
 }
 
 auto Driver::readBits(Size const numBits) noexcept -> std::optional<Data> {
-  Time constexpr DATA_BIT_TIMEOUT = (DATA_BIT_TOTAL_US + DATA_BIT_THRESHOLD);
-
   Data result = 0;
 
   for ([[maybe_unused]] auto const _ : std::views::repeat(0, numBits)) {
-    auto const optionalPulseWidth = readPulseWidth(DATA_BIT_TIMEOUT);
+    auto const optionalPulseWidth = readPulseWidth(DATA_BIT_TOTAL_US);
     if (not optionalPulseWidth.has_value()) {
       return std::nullopt;
     }
@@ -169,7 +166,7 @@ auto Driver::readPulseWidth(Time const timeout) noexcept -> std::optional<Time> 
 
     while (isBusLow()) {
       auto const currentTime = esp_timer_get_time();
-      auto const periodDelay  = (currentTime - startTime);
+      auto const periodDelay = (currentTime - startTime);
       if (periodDelay > timeout) {
         return std::nullopt;
       }
@@ -180,13 +177,13 @@ auto Driver::readPulseWidth(Time const timeout) noexcept -> std::optional<Time> 
 
   while (isBusHigh()) {
     auto const currentTime = esp_timer_get_time();
-    auto const periodDelay  = (currentTime - highLevelStartTime);
+    auto const periodDelay = (currentTime - highLevelStartTime);
     if (periodDelay > timeout) {
       return std::nullopt;
     }
   }
 
-  m_lowLevelStartTime = esp_timer_get_time();
+  m_lowLevelStartTime   = esp_timer_get_time();
   auto const pulseWidth = (m_lowLevelStartTime - highLevelStartTime);
 
   return pulseWidth;
