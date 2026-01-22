@@ -181,6 +181,7 @@ auto Driver::readPulseWidth(Time const timeout) noexcept -> std::optional<Time> 
     if (periodDelay > timeout) {
       return std::nullopt;
     }
+
   }
 
   m_lowLevelStartTime   = esp_timer_get_time();
