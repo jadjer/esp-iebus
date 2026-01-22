@@ -27,11 +27,14 @@ namespace iebus {
 
 namespace {
 
-Time constexpr START_BIT_TOTAL_US = 190;
-Time constexpr START_BIT_HIGH_US  = 170;
+Time constexpr FREE_BUS_INTERVAL_US = 500;
+
+Time constexpr START_BIT_TOTAL_US = 193;
+Time constexpr START_BIT_HIGH_US  = 171;
+Time constexpr START_BIT_THRESHOLD_US = 20;
 
 Time constexpr DATA_BIT_TOTAL_US     = 40;
-Time constexpr DATA_BIT_0_HIGH_US    = 33;
+Time constexpr DATA_BIT_0_HIGH_US    = 34;
 Time constexpr DATA_BIT_1_HIGH_US    = 20;
 Time constexpr DATA_BIT_THRESHOLD_US = 5;
 
@@ -96,15 +99,13 @@ auto Driver::isBusLow() const noexcept -> bool {
 }
 
 auto Driver::isBusFree() const noexcept -> bool {
-  Time constexpr BUS_FREE_INTERVAL_US = 400;
-
   if (isBusHigh()) {
     return false;
   }
 
   auto const currentTime    = esp_timer_get_time();
   auto const differenceTime = (currentTime - m_lowLevelStartTime);
-  auto const isFree         = (differenceTime >= BUS_FREE_INTERVAL_US);
+  auto const isFree         = (differenceTime >= FREE_BUS_INTERVAL_US);
 
   return isFree;
 }
@@ -124,15 +125,13 @@ auto Driver::disable() noexcept -> void {
 }
 
 auto Driver::readStartBit() noexcept -> bool {
-  Time constexpr START_BIT_THRESHOLD = 20;
-
   auto const optionalPulseWidth = readPulseWidth(START_BIT_TOTAL_US);
   if (not optionalPulseWidth.has_value()) {
     return false;
   }
   auto const pulseWidth = optionalPulseWidth.value();
 
-  auto const isStartBit = inRange(pulseWidth, START_BIT_HIGH_US, START_BIT_THRESHOLD);
+  auto const isStartBit = inRange(pulseWidth, START_BIT_HIGH_US, START_BIT_THRESHOLD_US);
 
   return isStartBit;
 }
