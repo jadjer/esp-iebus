@@ -21,7 +21,10 @@
 #include <iebus/Message.hpp>
 #include <iebus/types.hpp>
 
-namespace iebus {
+/**
+ * @namespace iebus::common
+ */
+namespace iebus::common {
 
 /**
  * Print message
@@ -34,4 +37,4 @@ auto printMessage(Message const& message) -> void;
  */
 auto printMessageError(MessageError messageError) -> void;
 
-} // namespace iebus
+} // namespace iebus::common

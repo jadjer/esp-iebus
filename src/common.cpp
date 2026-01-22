@@ -18,23 +18,19 @@
 
 #include "iebus/common.hpp"
 
-namespace iebus {
+#include <print>
 
-auto printMessage(Message const& message) -> void {
-  auto const broadcast = (message.broadcast == BroadcastType::FOR_DEVICE ? "D" : "B");
-  auto const control   = static_cast<Byte>(message.control);
+/**
+ * @namespace iebus::common
+ */
+namespace iebus::common {
 
-  printf("%s %03X %03X %01X %hu [", broadcast, message.master, message.slave, control, message.length);
-  printf("%02X", message.data[0]);
-  for (auto i = 1; i < message.length; ++i) {
-    printf(" %02X", message.data[i]);
-  }
-  printf("]\n");
-}
+namespace {
 
 auto messageErrorToString(MessageError const error) -> char const* {
   switch (error) {
   case MessageError::CONTROLLER_DISABLED: return "CONTROLLER_DISABLED";
+  case MessageError::BUS_BUSY: return "BUS_BUSY";
   case MessageError::START_BIT_READ_ERROR: return "START_BIT_READ_ERROR";
   case MessageError::START_BIT_ARBITRATION_LOST: return "START_BIT_ARBITRATION_LOST";
   case MessageError::START_BIT_IS_FALSE: return "START_BIT_IS_FALSE";
@@ -66,8 +62,38 @@ auto messageErrorToString(MessageError const error) -> char const* {
   }
 }
 
-auto printMessageError(MessageError const messageError) -> void {
-  printf("Error occurred: %s\n", messageErrorToString(messageError));
+auto controlTypeToString(ControlType const controlType) -> char const* {
+  switch (controlType) {
+  case ControlType::READ_SLAVE_STATUS: return "RSS";
+  case ControlType::READ_DATA_AND_LOCK: return "RD_L";
+  case ControlType::READ_LOCK_ADDRESS_LOW_ORDER: return "READ_LOCK_ADDRESS_LOW_ORDER";
+  case ControlType::READ_LOCK_ADDRESS_HIGH_ORDER: return "READ_LOCK_ADDRESS_HIGH_ORDER";
+  case ControlType::READ_SLAVE_STATUS_AND_UNLOCK: return "RSS_U";
+  case ControlType::READ_DATA: return "RD";
+  case ControlType::WRITE_COMMAND_AND_LOCK: return "WC_L";
+  case ControlType::WRITE_DATA_AND_LOCK: return "WD_L";
+  case ControlType::WRITE_COMMAND: return "WC";
+  case ControlType::WRITE_DATA: return "WD";
+  default: return "UNK";
+  }
 }
 
-} // namespace iebus
+} // namespace
+
+auto printMessage(Message const& message) -> void {
+  auto const broadcast = (message.broadcast == BroadcastType::FOR_DEVICE ? "D" : "B");
+  auto const control   = controlTypeToString(message.control);
+
+  std::printf("%s %03X %03X %s %hu [", broadcast, message.master, message.slave, control, message.length);
+  std::printf("%02X", message.data[0]);
+  for (auto i = 1; i < message.length; ++i) {
+    std::printf(" %02X", message.data[i]);
+  }
+  std::printf("]\n");
+}
+
+auto printMessageError(MessageError const messageError) -> void {
+  std::printf("Error occurred: %s\n", messageErrorToString(messageError));
+}
+
+} // namespace iebus::common

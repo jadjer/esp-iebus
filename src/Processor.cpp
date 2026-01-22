@@ -38,10 +38,10 @@ auto Processor::processMessage(Message const& message) noexcept -> std::vector<M
   }
 
   switch (command) {
-//  case 0x20: return handleCommand20(message);
-//  case 0x40: return handleCommand40(message);
-//  case 0x60: return handleCommand60(message);
-//  case 0x70: return handleCommand70(message);
+    //  case 0x20: return handleCommand20(message);
+    //  case 0x40: return handleCommand40(message);
+    //  case 0x60: return handleCommand60(message);
+    //  case 0x70: return handleCommand70(message);
   default: return {};
   }
 }

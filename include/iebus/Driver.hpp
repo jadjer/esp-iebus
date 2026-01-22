@@ -18,11 +18,9 @@
 
 #pragma once
 
-#include <optional>
-
 #include <driver/gpio_filter.h>
-#include <iebus/Timer.hpp>
 #include <iebus/types.hpp>
+#include <optional>
 
 /**
  * @namespace iebus
@@ -39,6 +37,7 @@ private:
 
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
+  ~Driver() noexcept;
 
 public:
   /**
@@ -73,40 +72,62 @@ public:
   auto disable() noexcept -> void;
 
 public:
-  [[nodiscard]] auto readStartBit() const noexcept -> bool;
+  /**
+   * Read start bit from IEBus
+   * @return bool
+   */
+  [[nodiscard]] auto readStartBit() noexcept -> bool;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readBits(Size numBits) const noexcept -> Data;
+  [[nodiscard]] auto readBits(Size numBits) noexcept -> std::optional<Data>;
 
 private:
   /**
    * Read pulse width
    * @return Pulse width
    */
-  [[nodiscard]] auto readPulseWidth() const noexcept -> Time;
+  [[nodiscard]] auto readPulseWidth(Time timeout, Time timeoutThreshold) noexcept -> std::optional<Time>;
 
 public:
   /**
    * Get start bit from IEBus
    * @return
    */
-  auto writeStartBit() const noexcept -> void;
+  auto writeStartBit() noexcept -> void;
   /**
    * Send data bits to IEBus
    * @param data data bits
    * @param numBits data size
    */
-  auto writeBits(Data data, Size numBits) const noexcept -> void;
+  auto writeBits(Data data, Size numBits) noexcept -> void;
 
 private:
   /**
    * Write pulse width
    * @param pulseWidth
    */
-  auto writePulseWidth(Time pulse, Time frame) const noexcept -> void;
+  auto writePulseWidth(Time pulse, Time frame) noexcept -> void;
+
+private:
+  /**
+   * Get timer after reset
+   * @return
+   */
+  [[nodiscard]] auto getTime() const noexcept -> Time;
+  /**
+   * Reset time
+   */
+  auto resetTime() noexcept -> void;
+
+private:
+  /**
+   * Interrupt function
+   * @param arg
+   */
+  static auto isrHandle(void* arg) noexcept -> void;
 
 private:
   Pin const m_rxPin;
@@ -114,11 +135,10 @@ private:
   Pin const m_enablePin;
 
 private:
-  bool m_enable   = false;
-  Filter m_filter = nullptr;
-
-private:
-  Timer m_timer;
+  bool m_enable            = false;
+  Filter m_filter          = nullptr;
+  Time m_resetTime         = 0;
+  Time m_lowLevelStartTime = 0;
 };
 
 } // namespace iebus

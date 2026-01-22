@@ -20,7 +20,6 @@
 
 #include <array>
 #include <cstdint>
-#include <driver/gpio.h>
 
 /**
  * @namespace iebus
@@ -30,7 +29,7 @@ namespace iebus {
 auto constexpr MAX_MESSAGE_SIZE = 256;
 
 using Bit     = std::uint8_t;
-using Pin     = gpio_num_t;
+using Pin     = std::uint8_t;
 using Byte    = std::uint8_t;
 using Data    = std::uint16_t;
 using Size    = std::uint16_t;
@@ -63,6 +62,7 @@ enum class ControlType : Byte {
 
 enum class MessageError : Bit {
   CONTROLLER_DISABLED                  = 10,
+  BUS_BUSY                             = 11,
   START_BIT_READ_ERROR                 = 20,
   START_BIT_ARBITRATION_LOST           = 21,
   START_BIT_IS_FALSE                   = 22,

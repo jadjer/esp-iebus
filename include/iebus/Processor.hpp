@@ -45,7 +45,7 @@ private:
   Address const m_address;
 
 private:
-  bool m_isRegistered;
+  bool m_isRegistered = false;
 };
 
 } // namespace iebus
