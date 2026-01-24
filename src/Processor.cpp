@@ -26,7 +26,7 @@ Address constexpr BROADCAST_ADDRESS = 0xFFF;
 
 } // namespace
 
-Processor::Processor(Address const address) noexcept : m_address(address), m_isRegistered(false) {
+Processor::Processor(Address const address) noexcept : m_address(address) {
 }
 
 auto Processor::processMessage(Message const& message) noexcept -> MessageList {
@@ -42,6 +42,7 @@ auto Processor::processMessage(Message const& message) noexcept -> MessageList {
   }
 
   if (not m_isRegistered) {
+    m_isRegistered = true;
     return createCommandRestart();
   }
 

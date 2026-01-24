@@ -21,8 +21,9 @@
 #include <expected>
 #include <utility>
 
-#include <iebus/Driver.hpp>
 #include <iebus/Message.hpp>
+#include <iebus/DriverRMT.hpp>
+#include <iebus/DriverGPIO.hpp>
 #include <iebus/types.hpp>
 
 /**
@@ -30,25 +31,24 @@
  */
 namespace iebus {
 
+enum class ReadFieldError {
+  DATA_READ_ERROR,
+  PARITY_BIT_READ_ERROR,
+  PARITY_WRONG,
+};
+
+enum class WriteFieldError {
+  ACK_BIT_READ_ERROR,
+  ACK_WRONG,
+};
+
 /**
  * @class Controller
  * IEBus Controller
  */
 class Controller {
-private:
-  enum class ReadFieldError {
-    DATA_READ_ERROR,
-    PARITY_BIT_READ_ERROR,
-    PARITY_WRONG,
-  };
-
-  enum class WriteFieldError {
-    ACK_BIT_READ_ERROR,
-    ACK_WRONG,
-  };
-
 public:
-  Controller(Driver& driver, Address address) noexcept;
+  Controller(DriverRMT& driver, Address address) noexcept;
 
 public:
   /**
@@ -88,7 +88,7 @@ private:
   Address const m_address;
 
 private:
-  Driver& m_driver;
+  DriverRMT& m_driver;
 };
 
 } // namespace iebus

@@ -81,7 +81,7 @@ auto controlTypeToString(ControlType const controlType) -> char const* {
 } // namespace
 
 auto printMessage(Message const& message) -> void {
-  auto const broadcast = (message.broadcast == BroadcastType::FOR_DEVICE ? "D" : "B");
+  auto const broadcast = ((message.broadcast == BroadcastType::FOR_DEVICE) ? "D" : "B");
   auto const control   = controlTypeToString(message.control);
 
   std::printf("%s %03X %03X %s %hu [", broadcast, message.master, message.slave, control, message.length);
@@ -93,7 +93,7 @@ auto printMessage(Message const& message) -> void {
 }
 
 auto printMessageError(MessageError const messageError) -> void {
-  std::printf("Error occurred: %s\n", messageErrorToString(messageError));
+  std::printf("Error: %s\n", messageErrorToString(messageError));
 }
 
 } // namespace iebus::common

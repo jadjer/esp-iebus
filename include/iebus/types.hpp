@@ -32,8 +32,8 @@ using Bit     = std::uint8_t;
 using Pin     = std::uint8_t;
 using Byte    = std::uint8_t;
 using Data    = std::uint16_t;
-using Size    = std::uint16_t;
-using Time    = std::int64_t;
+using Size    = std::size_t;
+using Time    = std::uint64_t;
 using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
 using Address = std::uint16_t;
 

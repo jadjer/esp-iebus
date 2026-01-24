@@ -47,7 +47,7 @@ auto checkParity(Data const data, Bit const parity) -> bool {
 
 } // namespace
 
-Controller::Controller(Driver& driver, Address const address) noexcept : m_address(address), m_driver(driver) {
+Controller::Controller(DriverRMT& driver, Address const address) noexcept : m_address(address), m_driver(driver) {
 }
 
 auto Controller::readMessage() const noexcept -> std::expected<Message, MessageError> {
@@ -62,16 +62,6 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
   }
 
   Message message = {};
-
-//  Message message = {
-//      BroadcastType::BROADCAST, 0x130, 0xFFF, ControlType::WRITE_COMMAND, 3,{0x10, 0x1A, 0x01}
-//  };
-
-//  Message message = {
-//      BroadcastType::BROADCAST, 0x130, 0xFFF, ControlType::WRITE_COMMAND, 12, {0x60, 0xC0, 0x00, 0x4F, 0xFF, 0x00, 0x00, 0x22, 0x00, 0x22, 0x00, 0x00}
-//  };
-
-//  return message;
 
   // BROADCAST
   auto const optionalBroadcastBit = m_driver.readBits(1);
@@ -118,7 +108,7 @@ auto Controller::readMessage() const noexcept -> std::expected<Message, MessageE
 
   message.slave = static_cast<Address>(slaveData);
 
-  auto const isTargeted = (message.broadcast == BroadcastType::FOR_DEVICE and message.slave == m_address);
+  auto const isTargeted = ((message.broadcast == BroadcastType::FOR_DEVICE) and (message.slave == m_address));
 
   if (isTargeted) {
     m_driver.writeBits(static_cast<Data>(isValidSlaveParity ? AckType::ACK : AckType::NAK), 1);

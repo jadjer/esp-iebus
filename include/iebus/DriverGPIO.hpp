@@ -19,6 +19,8 @@
 #pragma once
 
 #include <driver/gpio_filter.h>
+#include <expected>
+#include <iebus/Timer.hpp>
 #include <iebus/types.hpp>
 #include <optional>
 
@@ -31,13 +33,13 @@ namespace iebus {
  * @class Driver
  * IEBus Driver
  */
-class Driver {
+class DriverGPIO {
 private:
   using Filter = gpio_glitch_filter_handle_t;
 
 public:
-  Driver(Pin rx, Pin tx, Pin enable) noexcept;
-  ~Driver() noexcept;
+  DriverGPIO(Pin rx, Pin tx, Pin enable) noexcept;
+  ~DriverGPIO() noexcept;
 
 public:
   /**
@@ -117,9 +119,12 @@ private:
   Pin const m_enablePin;
 
 private:
-  bool m_enable            = false;
-  Filter m_filter          = nullptr;
-  Time m_lowLevelStartTime = 0;
+  Timer m_timer;
+  Timer m_busFreeTimer;
+
+private:
+  bool m_enable   = false;
+  Filter m_filter = nullptr;
 };
 
 } // namespace iebus
