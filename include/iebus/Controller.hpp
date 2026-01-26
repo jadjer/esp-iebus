@@ -36,7 +36,7 @@ namespace iebus {
  */
 class Controller {
 public:
-  Controller(Driver& driver, Address address) noexcept;
+  Controller(Driver const& driver, Address address) noexcept;
 
 public:
   /**
@@ -44,8 +44,6 @@ public:
    * @return Message or MessageError
    */
   [[nodiscard]] auto readMessage() const noexcept -> std::expected<Message, MessageError>;
-
-public:
   /**
    * Write the message to IEBus
    * @param message Message
@@ -57,7 +55,7 @@ private:
   Address const m_address;
 
 private:
-  Driver& m_driver;
+  Driver const& m_driver;
 };
 
 } // namespace iebus

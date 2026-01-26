@@ -19,6 +19,7 @@
 #pragma once
 
 #include <driver/gpio_filter.h>
+#include <iebus/Timer.hpp>
 #include <iebus/types.hpp>
 #include <optional>
 
@@ -33,6 +34,7 @@ namespace iebus {
  */
 class Driver {
 private:
+  using Cycles = std::uint32_t;
   using Filter = gpio_glitch_filter_handle_t;
 
 public:
@@ -78,50 +80,50 @@ public:
    * Read start bit from IEBus
    * @return bool
    */
-  [[nodiscard]] auto readStartBit() noexcept -> bool;
+  [[nodiscard]] auto readStartBit() const noexcept -> bool;
   /**
    * Get bit from IEBus
    * @return Bit
    */
-  [[nodiscard]] auto readDataBit() noexcept -> std::optional<Bit>;
+  [[nodiscard]] auto readBit() const noexcept -> std::optional<Bit>;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readField(Size numBits, bool sendAck, std::optional<Address> optionalAddress = std::nullopt) noexcept -> std::optional<Data>;
+  [[nodiscard]] auto readField(Size numBits, bool sendAck, std::optional<Address> optionalAddress = std::nullopt) const noexcept -> std::optional<Data>;
 
 private:
   /**
-   * Read bit from IEBus
-   * @return Bit
+   * Read pulse width from IEBus
+   * @return Pulse width time
    */
-  template <class T> [[nodiscard]] auto readBit(Time neutralCycles, Time frameCycles, T const& processBit) noexcept -> std::optional<Bit>;
+  [[nodiscard]] auto readPulseWidth() const noexcept -> Timer::Time;
 
 public:
   /**
    * Get start bit from IEBus
    * @return
    */
-  auto writeStartBit() noexcept -> bool;
+  auto writeStartBit() const noexcept -> void;
   /**
    * Send bit to IEBus
    * @param bit
    */
-  auto writeDataBit(Bit bit) noexcept -> bool;
+  auto writeBit(Bit bit) const noexcept -> void;
   /**
    * Send data bits to IEBus
    * @param data data bits
    * @param numBits data size
    */
-  auto writeField(Data data, Size numBits, std::optional<bool> optionalAck = std::nullopt) noexcept -> bool;
+  [[nodiscard]] auto writeField(Data data, Size numBits, std::optional<bool> optionalAck = std::nullopt) const noexcept -> bool;
 
 private:
   /**
    * Write pulse width
    * @param pulseWidth
    */
-  auto writeBit(Time pulseCycles, Time frameCycles) noexcept -> bool;
+  auto writePulseWidth(Timer::Time pulseUS, Timer::Time frameUS) const noexcept -> void;
 
 private:
   Pin const m_rxPin;
@@ -129,9 +131,12 @@ private:
   Pin const m_enablePin;
 
 private:
+  Timer m_lowLevelTimer;
+  Timer m_highLevelTimer;
+
+private:
   bool m_enable   = false;
   Filter m_filter = nullptr;
-  Time m_lowLevelStartCycles = 0;
 };
 
 } // namespace iebus

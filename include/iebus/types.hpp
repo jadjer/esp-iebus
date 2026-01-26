@@ -30,7 +30,6 @@ using Pin     = std::uint8_t;
 using Byte    = std::uint8_t;
 using Data    = std::uint16_t;
 using Size    = std::size_t;
-using Time    = std::uint32_t;
 using Address = std::uint16_t;
 
 enum class BroadcastType : Bit {

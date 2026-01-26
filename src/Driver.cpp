@@ -18,31 +18,22 @@
 
 #include "iebus/Driver.hpp"
 
-#include <algorithm>
 #include <driver/gpio.h>
 #include <esp_attr.h>
-#include <esp_cpu.h>
 
 namespace iebus {
 
 namespace {
 
-auto constexpr CPU_FREQUENCY_HZ = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ;
+Timer::Time constexpr FREE_BUS_INTERVAL_US = 500;
 
-Time constexpr FREE_BUS_INTERVAL_US = 500;
+Timer::Time constexpr DATA_BIT_TOTAL_US   = 40;
+Timer::Time constexpr DATA_BIT_0_HIGH_US  = 33;
+Timer::Time constexpr DATA_BIT_1_HIGH_US  = 20;
+Timer::Time constexpr DATA_BIT_NEUTRAL_US = ((DATA_BIT_0_HIGH_US + DATA_BIT_1_HIGH_US) / 2);
 
-Time constexpr DATA_BIT_TOTAL_US       = 40;
-Time constexpr DATA_BIT_0_HIGH_US      = 34;
-Time constexpr DATA_BIT_1_HIGH_US      = 20;
-Time constexpr DATA_BIT_NEUTRAL_US     = ((DATA_BIT_0_HIGH_US + DATA_BIT_1_HIGH_US) / 2);
-Time constexpr DATA_BIT_TOTAL_CYCLES   = DATA_BIT_TOTAL_US * CPU_FREQUENCY_HZ;
-Time constexpr DATA_BIT_NEUTRAL_CYCLES = DATA_BIT_NEUTRAL_US * CPU_FREQUENCY_HZ;
-
-Time constexpr START_BIT_TOTAL_US   = 190;
-Time constexpr START_BIT_HIGH_US    = 170;
-Time constexpr START_BIT_NEUTRAL_US = ((START_BIT_TOTAL_US + DATA_BIT_TOTAL_US) / 2);
-
-auto constexpr NO_OPERATION = [](auto&&...) {};
+Timer::Time constexpr START_BIT_TOTAL_US = 190;
+Timer::Time constexpr START_BIT_HIGH_US  = 170;
 
 } // namespace
 
@@ -91,18 +82,9 @@ auto IRAM_ATTR Driver::isBusHigh() const noexcept -> bool {
 }
 
 auto IRAM_ATTR Driver::isBusFree() const noexcept -> bool {
-  auto constexpr FREE_BUS_INTERVAL_CYCLES = FREE_BUS_INTERVAL_US * CPU_FREQUENCY_HZ;
+  if (isBusHigh()) return false;
 
-  while (isBusLow()) {
-    auto const currentCycles   = esp_cpu_get_cycle_count();
-    auto const differentCycles = (currentCycles - m_lowLevelStartCycles);
-
-    if (differentCycles >= FREE_BUS_INTERVAL_CYCLES) {
-      return true;
-    }
-  }
-
-  return false;
+  return (m_lowLevelTimer.getTimeUS() >= FREE_BUS_INTERVAL_US);
 }
 
 auto Driver::enable() noexcept -> void {
@@ -119,74 +101,75 @@ auto Driver::disable() noexcept -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), m_enable);
 }
 
-auto IRAM_ATTR Driver::readStartBit() noexcept -> bool {
-  auto constexpr START_BIT_TOTAL_CYCLES   = START_BIT_TOTAL_US * CPU_FREQUENCY_HZ;
-  auto constexpr START_BIT_NEUTRAL_CYCLES = START_BIT_NEUTRAL_US * CPU_FREQUENCY_HZ;
+auto IRAM_ATTR Driver::readStartBit() const noexcept -> bool {
+  auto const pulseWidth = readPulseWidth();
 
-  auto const optionalBit = readBit(START_BIT_NEUTRAL_CYCLES, START_BIT_TOTAL_CYCLES, NO_OPERATION);
-  if (not optionalBit.has_value()) {
+  if (pulseWidth > START_BIT_TOTAL_US) {
     return false;
   }
 
-  auto const bit     = optionalBit.value();
-  auto const isStart = static_cast<bool>(bit);
-
-  return isStart;
+  return static_cast<bool>(pulseWidth > DATA_BIT_TOTAL_US);
 }
 
-auto IRAM_ATTR Driver::readDataBit() noexcept -> std::optional<Bit> {
-  auto const optionalBit = readBit(DATA_BIT_NEUTRAL_CYCLES, DATA_BIT_TOTAL_CYCLES, NO_OPERATION);
-  if (not optionalBit.has_value()) {
+auto IRAM_ATTR Driver::readBit() const noexcept -> std::optional<Bit> {
+  auto const pulseWidth = readPulseWidth();
+
+  if (pulseWidth > DATA_BIT_TOTAL_US) {
     return std::nullopt;
   }
 
-  auto const bit = optionalBit.value();
-
-  return bit;
+  return static_cast<Bit>(pulseWidth <= DATA_BIT_NEUTRAL_US);
 }
 
-auto IRAM_ATTR Driver::readField(Size const numBits, bool const sendAck, std::optional<Address> const optionalAddress) noexcept -> std::optional<Data> {
-  Size const numBitsWithParity = (numBits + 1);
-
+auto IRAM_ATTR Driver::readField(Size const numBits, bool const sendAck, std::optional<Address> const optionalAddress) const noexcept -> std::optional<Data> {
   Bit parity     = 0;
   Data result    = 0;
   bool isValid   = true;
   bool isMatched = true;
 
-  for (Size i = 0; i < numBitsWithParity; ++i) {
-    auto const processBit = [&](Bit const bit) {
-      if (i < numBits) {
-        result = ((result << 1) | (bit & 1));
-        parity ^= (bit & 1);
-
-        if (optionalAddress.has_value() and isMatched) {
-          auto const address     = optionalAddress.value();
-          auto const bitPosition = (numBits - 1 - i);
-
-          if ((bit & 1) != ((address >> bitPosition) & 1)) {
-            isMatched = false;
-          }
-        }
-
-      } else if (bit != parity) {
-        isValid = false;
-      }
-    };
-
-    auto const optionalBit = readBit(DATA_BIT_NEUTRAL_CYCLES, DATA_BIT_TOTAL_CYCLES, processBit);
+  for (Size i = 0; i < numBits; ++i) {
+    auto const optionalBit = readBit();
     if (not optionalBit.has_value()) {
       return std::nullopt;
     }
+
+    auto const bit = optionalBit.value();
+
+    result = ((result << 1) | bit);
+    parity ^= bit;
+
+    if (optionalAddress.has_value() and isMatched) {
+      auto const address            = optionalAddress.value();
+      auto const addressBitPosition = (numBits - 1 - i);
+      auto const addressBit         = static_cast<Bit>((address >> addressBitPosition) & 1);
+
+      if (bit != addressBit) {
+        isMatched = false;
+      }
+    }
+  }
+
+  auto const optionalParityBit = readBit();
+  if (not optionalParityBit.has_value()) {
+    return std::nullopt;
+  }
+
+  auto const parityBit = optionalParityBit.value();
+
+  if (parityBit != parity) {
+    isValid = false;
   }
 
   if (sendAck and isMatched) {
+    while (m_highLevelTimer.getTimeUS() < DATA_BIT_TOTAL_US) {}
+
     auto const ack    = (isValid ? AckType::ACK : AckType::NAK);
     auto const ackBit = static_cast<Bit>(ack);
 
-    writeDataBit(ackBit);
+    writeBit(ackBit);
 
   } else {
-    std::ignore = readDataBit();
+    std::ignore = readBit();
   }
 
   if (not isValid) {
@@ -196,61 +179,47 @@ auto IRAM_ATTR Driver::readField(Size const numBits, bool const sendAck, std::op
   return result;
 }
 
-template <class T> auto IRAM_ATTR Driver::readBit(Time const neutralCycles, Time const frameCycles, T const& processBit) noexcept -> std::optional<Bit> {
-  auto const waitStartCycles = esp_cpu_get_cycle_count();
+auto IRAM_ATTR Driver::readPulseWidth() const noexcept -> Timer::Time {
+  while (isBusLow()) {}
 
-  while (isBusLow()) {
-    auto const currentCycles   = esp_cpu_get_cycle_count();
-    auto const differentCycles = (currentCycles - waitStartCycles);
-    if (differentCycles > frameCycles) {
-      return std::nullopt;
-    }
-  }
+  m_highLevelTimer.reset();
 
-  auto const bitStartCycles = esp_cpu_get_cycle_count();
+  while (isBusHigh()) {}
 
-  while ((esp_cpu_get_cycle_count() - bitStartCycles) < neutralCycles) {}
+  m_lowLevelTimer.reset();
 
-  Bit const bit = gpio_get_level(static_cast<gpio_num_t>(m_rxPin));
-
-  processBit(bit);
-
-  while ((esp_cpu_get_cycle_count() - bitStartCycles) < frameCycles) {}
-
-  m_lowLevelStartCycles = esp_cpu_get_cycle_count();
-
-  return bit;
+  return m_highLevelTimer.getTimeUS();
 }
 
-auto IRAM_ATTR Driver::writeStartBit() noexcept -> bool {
-  return writeBit(START_BIT_HIGH_US, START_BIT_TOTAL_US);
+auto IRAM_ATTR Driver::writeStartBit() const noexcept -> void {
+  writePulseWidth(START_BIT_HIGH_US, START_BIT_TOTAL_US);
 }
 
-auto IRAM_ATTR Driver::writeDataBit(Bit const bit) noexcept -> bool {
+auto IRAM_ATTR Driver::writeBit(Bit const bit) const noexcept -> void {
   auto const pulseWidth = ((bit & 1) ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US);
 
-  return writeBit(pulseWidth, DATA_BIT_TOTAL_US);
+  writePulseWidth(pulseWidth, DATA_BIT_TOTAL_US);
 }
 
-auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, std::optional<bool> const optionalAck) noexcept -> bool {
+auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, std::optional<bool> const optionalAck) const noexcept -> bool {
   Bit parity = 0;
 
   for (Size i = 0; i < numBits; ++i) {
     auto const bitPosition = (numBits - 1 - i);
     auto const bit         = static_cast<Bit>((data >> bitPosition) & 1);
 
-    parity ^= (bit & 1);
+    parity ^= bit;
 
-    writeDataBit(bit);
+    writeBit(bit);
   }
 
-  writeDataBit(parity);
+  writeBit(parity);
 
   if (optionalAck.has_value()) {
     auto const forDevice = optionalAck.value();
 
     if (forDevice) {
-      auto const optionalAckBit = readDataBit();
+      auto const optionalAckBit = readBit();
       if (not optionalAckBit.has_value()) {
         return false;
       }
@@ -266,35 +235,25 @@ auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, std::opti
       auto const ack    = AckType::NAK;
       auto const ackBit = static_cast<Bit>(ack);
 
-      writeDataBit(ackBit);
+      writeBit(ackBit);
     }
   }
 
   return true;
 }
 
-auto IRAM_ATTR Driver::writeBit(Time const pulseCycles, Time const frameCycles) noexcept -> bool {
-  auto const waitStartCycles = esp_cpu_get_cycle_count();
+auto IRAM_ATTR Driver::writePulseWidth(Timer::Time const pulseUS, Timer::Time const frameUS) const noexcept -> void {
+  while (isBusHigh()) {}
 
-  while (isBusHigh()) {
-    auto const currentCycles   = esp_cpu_get_cycle_count();
-    auto const differentCycles = (currentCycles - waitStartCycles);
-    if (differentCycles > frameCycles) {
-      return false;
-    }
-  }
-
-  auto const bitStartCycles = esp_cpu_get_cycle_count();
+  m_highLevelTimer.reset();
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-  while ((esp_cpu_get_cycle_count() - bitStartCycles) < pulseCycles) {}
-
-  m_lowLevelStartCycles = esp_cpu_get_cycle_count();
-
+  while (m_highLevelTimer.getTimeUS() < pulseUS) {}
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
-  while ((esp_cpu_get_cycle_count() - bitStartCycles) < frameCycles) {}
 
-  return true;
+  m_lowLevelTimer.reset();
+
+  while (m_highLevelTimer.getTimeUS() < frameUS) {}
 }
 
 } // namespace iebus

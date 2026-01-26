@@ -33,7 +33,7 @@ portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 } // namespace
 
-Controller::Controller(Driver& driver, Address const address) noexcept : m_address(address), m_driver(driver) {
+Controller::Controller(Driver const& driver, Address const address) noexcept : m_address(address), m_driver(driver) {
 }
 
 auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message, MessageError> {
@@ -53,7 +53,7 @@ auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message
   Message message = {};
 
   // BROADCAST
-  auto const optionalBroadcastBit = m_driver.readDataBit();
+  auto const optionalBroadcastBit = m_driver.readBit();
   if (not optionalBroadcastBit.has_value()) {
     portEXIT_CRITICAL(&spinlock);
     return std::unexpected(MessageError::BROADCAST_BIT_READ_ERROR);
@@ -135,15 +135,8 @@ auto IRAM_ATTR Controller::writeMessage(Message const& message) const noexcept -
     return std::unexpected(MessageError::BUS_IS_BUSY);
   }
 
-  if (auto const isWritten = m_driver.writeStartBit(); not isWritten) {
-    portEXIT_CRITICAL(&spinlock);
-    return std::unexpected(MessageError::START_BIT_WRITE_ERROR);
-  }
-
-  if (auto const isWritten = m_driver.writeDataBit(static_cast<Bit>(message.broadcast)); not isWritten) {
-    portEXIT_CRITICAL(&spinlock);
-    return std::unexpected(MessageError::BROADCAST_BIT_WRITE_ERROR);
-  }
+  m_driver.writeStartBit();
+  m_driver.writeBit(static_cast<Bit>(message.broadcast));
 
   if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.master), ADDRESS_BITS_SIZE, false); not isWritten) {
     portEXIT_CRITICAL(&spinlock);
