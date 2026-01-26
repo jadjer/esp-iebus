@@ -19,8 +19,6 @@
 #pragma once
 
 #include <driver/gpio_filter.h>
-#include <expected>
-#include <iebus/Timer.hpp>
 #include <iebus/types.hpp>
 #include <optional>
 
@@ -33,13 +31,13 @@ namespace iebus {
  * @class Driver
  * IEBus Driver
  */
-class DriverGPIO {
+class Driver {
 private:
   using Filter = gpio_glitch_filter_handle_t;
 
 public:
-  DriverGPIO(Pin rx, Pin tx, Pin enable) noexcept;
-  ~DriverGPIO() noexcept;
+  Driver(Pin rx, Pin tx, Pin enable) noexcept;
+  ~Driver() noexcept;
 
 public:
   /**
@@ -48,15 +46,17 @@ public:
    */
   [[nodiscard]] auto isEnabled() const noexcept -> bool;
   /**
-   * Check if IEBus is high
-   * @return bool
-   */
-  [[nodiscard]] auto isBusHigh() const noexcept -> bool;
-  /**
    * Check if IEBus is low
    * @return bool
    */
   [[nodiscard]] auto isBusLow() const noexcept -> bool;
+  /**
+   * Check if IEBus is high
+   * @return bool
+   */
+  [[nodiscard]] auto isBusHigh() const noexcept -> bool;
+
+public:
   /**
    * Check if bus is free
    * @return bool
@@ -80,38 +80,48 @@ public:
    */
   [[nodiscard]] auto readStartBit() noexcept -> bool;
   /**
+   * Get bit from IEBus
+   * @return Bit
+   */
+  [[nodiscard]] auto readDataBit() noexcept -> std::optional<Bit>;
+  /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readBits(Size numBits) noexcept -> std::optional<Data>;
+  [[nodiscard]] auto readField(Size numBits, bool sendAck, std::optional<Address> optionalAddress = std::nullopt) noexcept -> std::optional<Data>;
 
 private:
   /**
-   * Read pulse width
-   * @return Pulse width
+   * Read bit from IEBus
+   * @return Bit
    */
-  [[nodiscard]] auto readPulseWidth(Time timeout) noexcept -> std::optional<Time>;
+  template <class T> [[nodiscard]] auto readBit(Time neutralCycles, Time frameCycles, T const& processBit) noexcept -> std::optional<Bit>;
 
 public:
   /**
    * Get start bit from IEBus
    * @return
    */
-  auto writeStartBit() noexcept -> void;
+  auto writeStartBit() noexcept -> bool;
+  /**
+   * Send bit to IEBus
+   * @param bit
+   */
+  auto writeDataBit(Bit bit) noexcept -> bool;
   /**
    * Send data bits to IEBus
    * @param data data bits
    * @param numBits data size
    */
-  auto writeBits(Data data, Size numBits) noexcept -> void;
+  auto writeField(Data data, Size numBits, std::optional<bool> optionalAck = std::nullopt) noexcept -> bool;
 
 private:
   /**
    * Write pulse width
    * @param pulseWidth
    */
-  auto writePulseWidth(Time pulse, Time frame) noexcept -> void;
+  auto writeBit(Time pulseCycles, Time frameCycles) noexcept -> bool;
 
 private:
   Pin const m_rxPin;
@@ -119,12 +129,9 @@ private:
   Pin const m_enablePin;
 
 private:
-  Timer m_timer;
-  Timer m_busFreeTimer;
-
-private:
   bool m_enable   = false;
   Filter m_filter = nullptr;
+  Time m_lowLevelStartCycles = 0;
 };
 
 } // namespace iebus

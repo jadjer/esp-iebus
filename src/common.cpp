@@ -30,34 +30,29 @@ namespace {
 auto messageErrorToString(MessageError const error) -> char const* {
   switch (error) {
   case MessageError::CONTROLLER_DISABLED: return "CONTROLLER_DISABLED";
-  case MessageError::BUS_BUSY: return "BUS_BUSY";
+  case MessageError::BUS_IS_BUSY: return "BUS_IS_BUSY";
+
   case MessageError::START_BIT_READ_ERROR: return "START_BIT_READ_ERROR";
-  case MessageError::START_BIT_ARBITRATION_LOST: return "START_BIT_ARBITRATION_LOST";
-  case MessageError::START_BIT_IS_FALSE: return "START_BIT_IS_FALSE";
+  case MessageError::START_BIT_WRITE_ERROR: return "START_BIT_WRITE_ERROR";
+
   case MessageError::BROADCAST_BIT_READ_ERROR: return "BROADCAST_BIT_READ_ERROR";
-  case MessageError::MASTER_ADDRESS_DATA_READ_ERROR: return "MASTER_ADDRESS_DATA_READ_ERROR";
-  case MessageError::MASTER_ADDRESS_PARITY_BIT_READ_ERROR: return "MASTER_ADDRESS_PARITY_BIT_READ_ERROR";
-  case MessageError::MASTER_ADDRESS_PARITY_WRONG: return "MASTER_ADDRESS_PARITY_WRONG";
-  case MessageError::SLAVE_ADDRESS_DATA_READ_ERROR: return "SLAVE_ADDRESS_DATA_READ_ERROR";
-  case MessageError::SLAVE_ADDRESS_PARITY_BIT_READ_ERROR: return "SLAVE_ADDRESS_PARITY_BIT_READ_ERROR";
-  case MessageError::SLAVE_ADDRESS_PARITY_WRONG: return "SLAVE_ADDRESS_PARITY_WRONG";
-  case MessageError::SLAVE_ADDRESS_ACK_BIT_READ_ERROR: return "SLAVE_ADDRESS_ACK_BIT_READ_ERROR";
-  case MessageError::SLAVE_ADDRESS_ACK_WRONG: return "SLAVE_ADDRESS_ACK_WRONG";
-  case MessageError::CONTROL_DATA_READ_ERROR: return "CONTROL_DATA_READ_ERROR";
-  case MessageError::CONTROL_PARITY_BIT_READ_ERROR: return "CONTROL_PARITY_BIT_READ_ERROR";
-  case MessageError::CONTROL_PARITY_WRONG: return "CONTROL_PARITY_WRONG";
-  case MessageError::CONTROL_ACK_BIT_READ_ERROR: return "CONTROL_ACK_BIT_READ_ERROR";
-  case MessageError::CONTROL_ACK_WRONG: return "CONTROL_ACK_WRONG";
-  case MessageError::LENGTH_DATA_READ_ERROR: return "LENGTH_DATA_READ_ERROR";
-  case MessageError::LENGTH_PARITY_BIT_READ_ERROR: return "LENGTH_PARITY_BIT_READ_ERROR";
-  case MessageError::LENGTH_PARITY_WRONG: return "LENGTH_PARITY_WRONG";
-  case MessageError::LENGTH_ACK_BIT_READ_ERROR: return "LENGTH_ACK_BIT_READ_ERROR";
-  case MessageError::LENGTH_ACK_WRONG: return "LENGTH_ACK_WRONG";
-  case MessageError::DATA_READ_ERROR: return "DATA_READ_ERROR";
-  case MessageError::DATA_PARITY_BIT_READ_ERROR: return "DATA_PARITY_BIT_READ_ERROR";
-  case MessageError::DATA_PARITY_WRONG: return "DATA_PARITY_WRONG";
-  case MessageError::DATA_ACK_BIT_READ_ERROR: return "DATA_ACK_BIT_READ_ERROR";
-  case MessageError::DATA_ACK_WRONG: return "DATA_ACK_WRONG";
+  case MessageError::BROADCAST_BIT_WRITE_ERROR: return "BROADCAST_BIT_WRITE_ERROR";
+
+  case MessageError::MASTER_ADDRESS_FIELD_READ_ERROR: return "MASTER_ADDRESS_FIELD_READ_ERROR";
+  case MessageError::MASTER_ADDRESS_FIELD_WRITE_ERROR: return "MASTER_ADDRESS_FIELD_WRITE_ERROR";
+
+  case MessageError::SLAVE_ADDRESS_FIELD_READ_ERROR: return "SLAVE_ADDRESS_FIELD_READ_ERROR";
+  case MessageError::SLAVE_ADDRESS_FIELD_WRITE_ERROR: return "SLAVE_ADDRESS_FIELD_WRITE_ERROR";
+
+  case MessageError::CONTROL_FIELD_READ_ERROR: return "CONTROL_FIELD_READ_ERROR";
+  case MessageError::CONTROL_FIELD_WRITE_ERROR: return "CONTROL_FIELD_WRITE_ERROR";
+
+  case MessageError::LENGTH_FIELD_READ_ERROR: return "LENGTH_FIELD_READ_ERROR";
+  case MessageError::LENGTH_FIELD_WRITE_ERROR: return "LENGTH_FIELD_WRITE_ERROR";
+
+  case MessageError::DATA_FIELD_READ_ERROR: return "DATA_FIELD_READ_ERROR";
+  case MessageError::DATA_FIELD_WRITE_ERROR: return "DATA_FIELD_WRITE_ERROR";
+
   default: return "UNKNOWN_ERROR";
   }
 }
@@ -65,13 +60,13 @@ auto messageErrorToString(MessageError const error) -> char const* {
 auto controlTypeToString(ControlType const controlType) -> char const* {
   switch (controlType) {
   case ControlType::READ_SLAVE_STATUS: return "RSS";
-  case ControlType::READ_DATA_AND_LOCK: return "RD_L";
-  case ControlType::READ_LOCK_ADDRESS_LOW_ORDER: return "READ_LOCK_ADDRESS_LOW_ORDER";
-  case ControlType::READ_LOCK_ADDRESS_HIGH_ORDER: return "READ_LOCK_ADDRESS_HIGH_ORDER";
-  case ControlType::READ_SLAVE_STATUS_AND_UNLOCK: return "RSS_U";
+  case ControlType::READ_DATA_AND_LOCK: return "RD&L";
+  case ControlType::READ_LOCK_ADDRESS_LOW_ORDER: return "RLA_L";
+  case ControlType::READ_LOCK_ADDRESS_HIGH_ORDER: return "RLA_H";
+  case ControlType::READ_SLAVE_STATUS_AND_UNLOCK: return "RSS&U";
   case ControlType::READ_DATA: return "RD";
-  case ControlType::WRITE_COMMAND_AND_LOCK: return "WC_L";
-  case ControlType::WRITE_DATA_AND_LOCK: return "WD_L";
+  case ControlType::WRITE_COMMAND_AND_LOCK: return "WC&L";
+  case ControlType::WRITE_DATA_AND_LOCK: return "WD&L";
   case ControlType::WRITE_COMMAND: return "WC";
   case ControlType::WRITE_DATA: return "WD";
   default: return "UNK";

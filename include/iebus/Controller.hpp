@@ -21,9 +21,8 @@
 #include <expected>
 #include <utility>
 
+#include <iebus/Driver.hpp>
 #include <iebus/Message.hpp>
-#include <iebus/DriverRMT.hpp>
-#include <iebus/DriverGPIO.hpp>
 #include <iebus/types.hpp>
 
 /**
@@ -31,64 +30,34 @@
  */
 namespace iebus {
 
-enum class ReadFieldError {
-  DATA_READ_ERROR,
-  PARITY_BIT_READ_ERROR,
-  PARITY_WRONG,
-};
-
-enum class WriteFieldError {
-  ACK_BIT_READ_ERROR,
-  ACK_WRONG,
-};
-
 /**
  * @class Controller
  * IEBus Controller
  */
 class Controller {
 public:
-  Controller(DriverRMT& driver, Address address) noexcept;
+  Controller(Driver& driver, Address address) noexcept;
 
 public:
   /**
    * Read the message from IEBus
-   * @return Optional message
+   * @return Message or MessageError
    */
   [[nodiscard]] auto readMessage() const noexcept -> std::expected<Message, MessageError>;
 
-private:
-  /**
-   * Read filed
-   * @param bitSize
-   * @param sendAck
-   * @return
-   */
-  [[nodiscard]] auto readField(Size bitSize, bool sendAck) const noexcept -> std::expected<Data, ReadFieldError>;
-
 public:
   /**
-   * Write a message to IEBus
+   * Write the message to IEBus
    * @param message Message
-   * @return bool
+   * @return None or MessageError
    */
   [[nodiscard]] auto writeMessage(Message const& message) const noexcept -> std::expected<std::monostate, MessageError>;
-
-private:
-  /**
-   * Write field
-   * @param data
-   * @param bitSize
-   * @param forDevice
-   * @return
-   */
-  [[nodiscard]] auto writeField(Data data, Size bitSize, bool forDevice) const noexcept -> std::expected<std::monostate, WriteFieldError>;
 
 private:
   Address const m_address;
 
 private:
-  DriverRMT& m_driver;
+  Driver& m_driver;
 };
 
 } // namespace iebus

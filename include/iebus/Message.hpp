@@ -18,12 +18,21 @@
 
 #pragma once
 
+#include <array>
 #include <iebus/types.hpp>
 
 /**
  * @namespace iebus
  */
 namespace iebus {
+
+namespace {
+
+auto constexpr MAX_MESSAGE_SIZE = 256;
+
+}
+
+using Bytes = std::array<Byte, MAX_MESSAGE_SIZE>;
 
 /**
  * @class Message

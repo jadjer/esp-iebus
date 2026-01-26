@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <array>
 #include <cstdint>
 
 /**
@@ -26,15 +25,12 @@
  */
 namespace iebus {
 
-auto constexpr MAX_MESSAGE_SIZE = 256;
-
 using Bit     = std::uint8_t;
 using Pin     = std::uint8_t;
 using Byte    = std::uint8_t;
 using Data    = std::uint16_t;
 using Size    = std::size_t;
-using Time    = std::uint64_t;
-using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
+using Time    = std::uint32_t;
 using Address = std::uint16_t;
 
 enum class BroadcastType : Bit {
@@ -61,35 +57,29 @@ enum class ControlType : Byte {
 };
 
 enum class MessageError : Bit {
-  CONTROLLER_DISABLED                  = 10,
-  BUS_BUSY                             = 11,
-  START_BIT_READ_ERROR                 = 20,
-  START_BIT_ARBITRATION_LOST           = 21,
-  START_BIT_IS_FALSE                   = 22,
-  BROADCAST_BIT_READ_ERROR             = 30,
-  MASTER_ADDRESS_DATA_READ_ERROR       = 40,
-  MASTER_ADDRESS_PARITY_BIT_READ_ERROR = 41,
-  MASTER_ADDRESS_PARITY_WRONG          = 42,
-  SLAVE_ADDRESS_DATA_READ_ERROR        = 50,
-  SLAVE_ADDRESS_PARITY_BIT_READ_ERROR  = 51,
-  SLAVE_ADDRESS_PARITY_WRONG           = 52,
-  SLAVE_ADDRESS_ACK_BIT_READ_ERROR     = 53,
-  SLAVE_ADDRESS_ACK_WRONG              = 54,
-  CONTROL_DATA_READ_ERROR              = 60,
-  CONTROL_PARITY_BIT_READ_ERROR        = 61,
-  CONTROL_PARITY_WRONG                 = 62,
-  CONTROL_ACK_BIT_READ_ERROR           = 63,
-  CONTROL_ACK_WRONG                    = 64,
-  LENGTH_DATA_READ_ERROR               = 70,
-  LENGTH_PARITY_BIT_READ_ERROR         = 71,
-  LENGTH_PARITY_WRONG                  = 72,
-  LENGTH_ACK_BIT_READ_ERROR            = 73,
-  LENGTH_ACK_WRONG                     = 74,
-  DATA_READ_ERROR                      = 80,
-  DATA_PARITY_BIT_READ_ERROR           = 81,
-  DATA_PARITY_WRONG                    = 82,
-  DATA_ACK_BIT_READ_ERROR              = 83,
-  DATA_ACK_WRONG                       = 84,
+  CONTROLLER_DISABLED = 1,
+  BUS_IS_BUSY         = 2,
+
+  START_BIT_READ_ERROR  = 10,
+  START_BIT_WRITE_ERROR = 11,
+
+  BROADCAST_BIT_READ_ERROR  = 20,
+  BROADCAST_BIT_WRITE_ERROR = 21,
+
+  MASTER_ADDRESS_FIELD_READ_ERROR  = 30,
+  MASTER_ADDRESS_FIELD_WRITE_ERROR = 31,
+
+  SLAVE_ADDRESS_FIELD_READ_ERROR  = 40,
+  SLAVE_ADDRESS_FIELD_WRITE_ERROR = 41,
+
+  CONTROL_FIELD_READ_ERROR  = 50,
+  CONTROL_FIELD_WRITE_ERROR = 51,
+
+  LENGTH_FIELD_READ_ERROR  = 60,
+  LENGTH_FIELD_WRITE_ERROR = 61,
+
+  DATA_FIELD_READ_ERROR  = 70,
+  DATA_FIELD_WRITE_ERROR = 71,
 };
 
 } // namespace iebus

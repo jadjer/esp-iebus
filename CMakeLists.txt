@@ -7,20 +7,16 @@ set(INCLUDES
 set(SOURCES
         src/common.cpp
 
-        src/Timer.cpp
-        src/DriverRMT.cpp
+        src/Driver.cpp
         src/Processor.cpp
         src/Controller.cpp
-        src/DriverGPIO.cpp
 )
 
 set(REQUIRES
-        esp_driver_rmt
-        esp_driver_gptimer
+
 )
 
 set(PRIV_REQUIRES
-        esp_timer
         esp_driver_gpio
 )
 
