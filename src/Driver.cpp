@@ -84,7 +84,7 @@ auto IRAM_ATTR Driver::isBusHigh() const noexcept -> bool {
 auto IRAM_ATTR Driver::isBusFree() const noexcept -> bool {
   if (isBusHigh()) return false;
 
-  return (m_lowLevelTimer.getTimeUS() >= FREE_BUS_INTERVAL_US);
+  return (m_lowTimer.getTimeUS() >= FREE_BUS_INTERVAL_US);
 }
 
 auto Driver::enable() noexcept -> void {
@@ -161,7 +161,7 @@ auto IRAM_ATTR Driver::readField(Size const numBits, bool const sendAck, std::op
   }
 
   if (sendAck and isMatched) {
-    while (m_highLevelTimer.getTimeUS() < DATA_BIT_TOTAL_US) {}
+    while (m_highTimer.getTimeUS() < DATA_BIT_TOTAL_US) {}
 
     auto const ack    = (isValid ? AckType::ACK : AckType::NAK);
     auto const ackBit = static_cast<Bit>(ack);
@@ -182,13 +182,13 @@ auto IRAM_ATTR Driver::readField(Size const numBits, bool const sendAck, std::op
 auto IRAM_ATTR Driver::readPulseWidth() const noexcept -> Timer::Time {
   while (isBusLow()) {}
 
-  m_highLevelTimer.reset();
+  m_highTimer.reset();
 
   while (isBusHigh()) {}
 
-  m_lowLevelTimer.reset();
+  m_lowTimer.reset();
 
-  return m_highLevelTimer.getTimeUS();
+  return m_highTimer.getTimeUS();
 }
 
 auto IRAM_ATTR Driver::writeStartBit() const noexcept -> void {
@@ -245,15 +245,15 @@ auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, std::opti
 auto IRAM_ATTR Driver::writePulseWidth(Timer::Time const pulseUS, Timer::Time const frameUS) const noexcept -> void {
   while (isBusHigh()) {}
 
-  m_highLevelTimer.reset();
+  m_highTimer.reset();
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-  while (m_highLevelTimer.getTimeUS() < pulseUS) {}
+  while (m_highTimer.getTimeUS() < pulseUS) {}
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
 
-  m_lowLevelTimer.reset();
+  m_lowTimer.reset();
 
-  while (m_highLevelTimer.getTimeUS() < frameUS) {}
+  while (m_highTimer.getTimeUS() < frameUS) {}
 }
 
 } // namespace iebus

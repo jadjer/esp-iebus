@@ -131,8 +131,8 @@ private:
   Pin const m_enablePin;
 
 private:
-  Timer m_lowLevelTimer;
-  Timer m_highLevelTimer;
+  Timer m_lowTimer;
+  Timer m_highTimer;
 
 private:
   bool m_enable   = false;
