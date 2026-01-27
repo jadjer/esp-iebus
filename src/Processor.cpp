@@ -42,7 +42,6 @@ auto Processor::processMessage(Message const& message) noexcept -> MessageList {
   }
 
   if (not m_isRegistered) {
-    m_isRegistered = true;
     return createCommandRestart();
   }
 
@@ -93,11 +92,11 @@ auto Processor::checkSlaveAddress(Message const& message) const -> bool {
   return false;
 }
 
-auto Processor::createCommand(Address const target, Bytes data, Size length) const noexcept -> Message {
+auto Processor::createCommand(Address const target, Bytes const data, Size const length) const noexcept -> Message {
   return Message{.broadcast = BroadcastType::FOR_DEVICE, .master = m_address, .slave = target, .control = ControlType::WRITE_COMMAND, .length = length, .data = data};
 }
 
-auto Processor::createBroadcastCommand(Bytes data, Size length) const noexcept -> Message {
+auto Processor::createBroadcastCommand(Bytes const data, Size const length) const noexcept -> Message {
   return Message{.broadcast = BroadcastType::BROADCAST, .master = m_address, .slave = BROADCAST_ADDRESS, .control = ControlType::WRITE_COMMAND, .length = length, .data = data};
 }
 

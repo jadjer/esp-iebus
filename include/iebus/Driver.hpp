@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <driver/gpio_filter.h>
 #include <iebus/Timer.hpp>
 #include <iebus/types.hpp>
 #include <optional>
@@ -33,13 +32,8 @@ namespace iebus {
  * IEBus Driver
  */
 class Driver {
-private:
-  using Cycles = std::uint32_t;
-  using Filter = gpio_glitch_filter_handle_t;
-
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
-  ~Driver() noexcept;
 
 public:
   /**
@@ -76,6 +70,10 @@ public:
   auto disable() noexcept -> void;
 
 public:
+  auto enableTest() const noexcept -> void;
+  auto disableTest() const noexcept -> void;
+
+public:
   /**
    * Read start bit from IEBus
    * @return bool
@@ -98,19 +96,19 @@ private:
    * Read pulse width from IEBus
    * @return Pulse width time
    */
-  [[nodiscard]] auto readPulseWidth() const noexcept -> Timer::Time;
+  [[nodiscard]] auto readPulseWidth(Timer::Time waitTimeoutUS, Timer::Time pulseTimeoutUS) const noexcept -> std::optional<Timer::Time>;
 
 public:
   /**
    * Get start bit from IEBus
    * @return
    */
-  auto writeStartBit() const noexcept -> void;
+  [[nodiscard]] auto writeStartBit() const noexcept -> bool;
   /**
    * Send bit to IEBus
    * @param bit
    */
-  auto writeBit(Bit bit) const noexcept -> void;
+  [[nodiscard]] auto writeBit(Bit bit) const noexcept -> bool;
   /**
    * Send data bits to IEBus
    * @param data data bits
@@ -123,7 +121,7 @@ private:
    * Write pulse width
    * @param pulseWidth
    */
-  auto writePulseWidth(Timer::Time pulseUS, Timer::Time frameUS) const noexcept -> void;
+  [[nodiscard]] auto writePulseWidth(Timer::Time waitTimeoutUS, Timer::Time pulseUS, Timer::Time frameUS) const noexcept -> bool;
 
 private:
   Pin const m_rxPin;
@@ -136,7 +134,6 @@ private:
 
 private:
   bool m_enable   = false;
-  Filter m_filter = nullptr;
 };
 
 } // namespace iebus

@@ -48,25 +48,13 @@ Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(
   gpio_config(&inputConfiguration);
 
   gpio_config_t const outputConfiguration = {
-      .pin_bit_mask = ((1ULL << m_txPin) | (1ULL << m_enablePin)),
+      .pin_bit_mask = ((1ULL << m_txPin) | (1ULL << m_enablePin) | (1ULL << GPIO_NUM_36) | (1ULL << GPIO_NUM_37)),
       .mode         = GPIO_MODE_OUTPUT,
       .pull_up_en   = GPIO_PULLUP_DISABLE,
       .pull_down_en = GPIO_PULLDOWN_DISABLE,
       .intr_type    = GPIO_INTR_DISABLE,
   };
   gpio_config(&outputConfiguration);
-
-  gpio_pin_glitch_filter_config_t const filterConfiguration = {
-      .clk_src  = GLITCH_FILTER_CLK_SRC_DEFAULT,
-      .gpio_num = static_cast<gpio_num_t>(m_rxPin),
-  };
-  gpio_new_pin_glitch_filter(&filterConfiguration, &m_filter);
-  gpio_glitch_filter_enable(m_filter);
-}
-
-Driver::~Driver() noexcept {
-  gpio_glitch_filter_disable(m_filter);
-  gpio_del_glitch_filter(m_filter);
 }
 
 auto Driver::isEnabled() const noexcept -> bool {
@@ -101,18 +89,43 @@ auto Driver::disable() noexcept -> void {
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), m_enable);
 }
 
+auto Driver::enableTest() const noexcept -> void {
+  gpio_set_level(GPIO_NUM_36, 1);
+}
+
+auto Driver::disableTest() const noexcept -> void {
+  gpio_set_level(GPIO_NUM_36, 0);
+}
+
 auto IRAM_ATTR Driver::readStartBit() const noexcept -> bool {
-  auto const pulseWidth = readPulseWidth();
+  auto const optionalPulseWidth = readPulseWidth(FREE_BUS_INTERVAL_US, START_BIT_TOTAL_US);
+  if (not optionalPulseWidth.has_value()) {
+    return false;
+  }
+
+  auto const pulseWidth = optionalPulseWidth.value();
 
   if (pulseWidth > START_BIT_TOTAL_US) {
     return false;
   }
 
-  return static_cast<bool>(pulseWidth > DATA_BIT_TOTAL_US);
+  auto const isStarted = static_cast<bool>(pulseWidth > DATA_BIT_TOTAL_US);
+
+  if (isStarted) {
+
+  }
+
+  return isStarted;
 }
 
 auto IRAM_ATTR Driver::readBit() const noexcept -> std::optional<Bit> {
-  auto const pulseWidth = readPulseWidth();
+  auto const optionalPulseWidth = readPulseWidth(DATA_BIT_TOTAL_US, DATA_BIT_TOTAL_US);
+
+  if (not optionalPulseWidth.has_value()) {
+    return std::nullopt;
+  }
+
+  auto const pulseWidth = optionalPulseWidth.value();
 
   if (pulseWidth > DATA_BIT_TOTAL_US) {
     return std::nullopt;
@@ -166,7 +179,9 @@ auto IRAM_ATTR Driver::readField(Size const numBits, bool const sendAck, std::op
     auto const ack    = (isValid ? AckType::ACK : AckType::NAK);
     auto const ackBit = static_cast<Bit>(ack);
 
-    writeBit(ackBit);
+    if (auto const isWritten = writeBit(ackBit); not isWritten) {
+      return std::nullopt;
+    }
 
   } else {
     std::ignore = readBit();
@@ -179,26 +194,38 @@ auto IRAM_ATTR Driver::readField(Size const numBits, bool const sendAck, std::op
   return result;
 }
 
-auto IRAM_ATTR Driver::readPulseWidth() const noexcept -> Timer::Time {
-  while (isBusLow()) {}
+auto IRAM_ATTR Driver::readPulseWidth(Timer::Time const waitTimeoutUS, Timer::Time const pulseTimeoutUS) const noexcept -> std::optional<Timer::Time> {
+  if (isBusLow()) {
+    while (isBusLow()) {
+      if (m_lowTimer.getTimeUS() > waitTimeoutUS) {
+        return std::nullopt;
+      }
+    }
+  }
 
   m_highTimer.reset();
 
-  while (isBusHigh()) {}
+  while (isBusHigh()) {
+    if (m_highTimer.getTimeUS() > pulseTimeoutUS) {
+      return std::nullopt;
+    }
+  }
+
+  auto const pulseWidthUS = m_highTimer.getTimeUS();
 
   m_lowTimer.reset();
 
-  return m_highTimer.getTimeUS();
+  return pulseWidthUS;
 }
 
-auto IRAM_ATTR Driver::writeStartBit() const noexcept -> void {
-  writePulseWidth(START_BIT_HIGH_US, START_BIT_TOTAL_US);
+auto IRAM_ATTR Driver::writeStartBit() const noexcept -> bool {
+  return writePulseWidth(FREE_BUS_INTERVAL_US, START_BIT_HIGH_US, START_BIT_TOTAL_US);
 }
 
-auto IRAM_ATTR Driver::writeBit(Bit const bit) const noexcept -> void {
+auto IRAM_ATTR Driver::writeBit(Bit const bit) const noexcept -> bool {
   auto const pulseWidth = ((bit & 1) ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US);
 
-  writePulseWidth(pulseWidth, DATA_BIT_TOTAL_US);
+  return writePulseWidth(DATA_BIT_TOTAL_US, pulseWidth, DATA_BIT_TOTAL_US);
 }
 
 auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, std::optional<bool> const optionalAck) const noexcept -> bool {
@@ -210,10 +237,14 @@ auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, std::opti
 
     parity ^= bit;
 
-    writeBit(bit);
+    if (auto const isWritten = writeBit(bit); not isWritten) {
+      return false;
+    }
   }
 
-  writeBit(parity);
+  if (auto const isWritten = writeBit(parity); not isWritten) {
+    return false;
+  }
 
   if (optionalAck.has_value()) {
     auto const forDevice = optionalAck.value();
@@ -235,25 +266,39 @@ auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, std::opti
       auto const ack    = AckType::NAK;
       auto const ackBit = static_cast<Bit>(ack);
 
-      writeBit(ackBit);
+      if (auto const isWritten = writeBit(ackBit); not isWritten) {
+        return false;
+      }
     }
   }
 
   return true;
 }
 
-auto IRAM_ATTR Driver::writePulseWidth(Timer::Time const pulseUS, Timer::Time const frameUS) const noexcept -> void {
-  while (isBusHigh()) {}
+auto IRAM_ATTR Driver::writePulseWidth(Timer::Time const waitTimeoutUS, Timer::Time const pulseUS, Timer::Time const frameUS) const noexcept -> bool {
+  if (isBusHigh()) {
+    m_highTimer.reset();
+
+    while (isBusHigh()) {
+      if (m_highTimer.getTimeUS() > waitTimeoutUS) {
+        return false;
+      }
+    }
+  }
 
   m_highTimer.reset();
 
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
+
   while (m_highTimer.getTimeUS() < pulseUS) {}
+
   gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
 
   m_lowTimer.reset();
 
   while (m_highTimer.getTimeUS() < frameUS) {}
+
+  return true;
 }
 
 } // namespace iebus

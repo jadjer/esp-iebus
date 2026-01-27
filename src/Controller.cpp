@@ -18,7 +18,7 @@
 
 #include "iebus/Controller.hpp"
 
-#include <freertos/FreeRTOS.h>
+#include <esp_attr.h>
 
 namespace iebus {
 
@@ -28,8 +28,6 @@ auto constexpr ADDRESS_BITS_SIZE = 12;
 auto constexpr CONTROL_BITS_SIZE = 4;
 auto constexpr LENGTH_BITS_SIZE  = 8;
 auto constexpr DATA_BITS_SIZE    = 8;
-
-portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 } // namespace
 
@@ -41,33 +39,32 @@ auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message
     return std::unexpected(MessageError::CONTROLLER_DISABLED);
   }
 
-  portENTER_CRITICAL(&spinlock);
-
   // START_BIT
   auto const isStarted = m_driver.readStartBit();
   if (not isStarted) {
-    portEXIT_CRITICAL(&spinlock);
     return std::unexpected(MessageError::START_BIT_READ_ERROR);
   }
+
+  m_driver.enableTest();
 
   Message message = {};
 
   // BROADCAST
   auto const optionalBroadcastBit = m_driver.readBit();
   if (not optionalBroadcastBit.has_value()) {
-    portEXIT_CRITICAL(&spinlock);
+    m_driver.disableTest();
     return std::unexpected(MessageError::BROADCAST_BIT_READ_ERROR);
   }
 
   auto const broadcastBit = optionalBroadcastBit.value();
   message.broadcast       = static_cast<BroadcastType>(broadcastBit);
 
-  auto const forDevice    = static_cast<bool>(broadcastBit);
+  auto const forDevice = static_cast<bool>(broadcastBit);
 
   // MASTER
   auto const optionalMasterData = m_driver.readField(ADDRESS_BITS_SIZE, false);
   if (not optionalMasterData.has_value()) {
-    portEXIT_CRITICAL(&spinlock);
+    m_driver.disableTest();
     return std::unexpected(MessageError::MASTER_ADDRESS_FIELD_READ_ERROR);
   }
 
@@ -77,7 +74,7 @@ auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message
   // SLAVE
   auto const optionalSlaveData = m_driver.readField(ADDRESS_BITS_SIZE, forDevice, m_address);
   if (not optionalSlaveData.has_value()) {
-    portEXIT_CRITICAL(&spinlock);
+    m_driver.disableTest();
     return std::unexpected(MessageError::SLAVE_ADDRESS_FIELD_READ_ERROR);
   }
 
@@ -89,7 +86,7 @@ auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message
   // CONTROL
   auto const optionalControlData = m_driver.readField(CONTROL_BITS_SIZE, isTarget);
   if (not optionalControlData.has_value()) {
-    portEXIT_CRITICAL(&spinlock);
+    m_driver.disableTest();
     return std::unexpected(MessageError::CONTROL_FIELD_READ_ERROR);
   }
 
@@ -99,7 +96,7 @@ auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message
   // LENGTH
   auto const optionalLengthData = m_driver.readField(LENGTH_BITS_SIZE, isTarget);
   if (not optionalLengthData.has_value()) {
-    portEXIT_CRITICAL(&spinlock);
+    m_driver.disableTest();
     return std::unexpected(MessageError::LENGTH_FIELD_READ_ERROR);
   }
 
@@ -110,7 +107,7 @@ auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message
   for (Size i = 0; i < message.length; ++i) {
     auto const optionalData = m_driver.readField(DATA_BITS_SIZE, isTarget);
     if (not optionalData.has_value()) {
-      portEXIT_CRITICAL(&spinlock);
+      m_driver.disableTest();
       return std::unexpected(MessageError::DATA_FIELD_READ_ERROR);
     }
 
@@ -118,7 +115,7 @@ auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message
     message.data[i] = static_cast<Byte>(data);
   }
 
-  portEXIT_CRITICAL(&spinlock);
+  m_driver.disableTest();
 
   return message;
 }
@@ -128,46 +125,41 @@ auto IRAM_ATTR Controller::writeMessage(Message const& message) const noexcept -
     return std::unexpected(MessageError::CONTROLLER_DISABLED);
   }
 
-  portENTER_CRITICAL(&spinlock);
-
   if (not m_driver.isBusFree()) {
-    portEXIT_CRITICAL(&spinlock);
     return std::unexpected(MessageError::BUS_IS_BUSY);
   }
 
-  m_driver.writeStartBit();
-  m_driver.writeBit(static_cast<Bit>(message.broadcast));
+  if (auto const isWritten = m_driver.writeStartBit(); not isWritten) {
+    return std::unexpected(MessageError::START_BIT_WRITE_ERROR);
+  }
+
+  if (auto const isWritten = m_driver.writeBit(static_cast<Bit>(message.broadcast)); not isWritten) {
+    return std::unexpected(MessageError::BROADCAST_BIT_WRITE_ERROR);
+  }
 
   if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.master), ADDRESS_BITS_SIZE, false); not isWritten) {
-    portEXIT_CRITICAL(&spinlock);
     return std::unexpected(MessageError::MASTER_ADDRESS_FIELD_WRITE_ERROR);
   }
 
   auto const isTargeted = (message.broadcast == BroadcastType::FOR_DEVICE);
 
   if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.slave), ADDRESS_BITS_SIZE, isTargeted); not isWritten) {
-    portEXIT_CRITICAL(&spinlock);
     return std::unexpected(MessageError::SLAVE_ADDRESS_FIELD_WRITE_ERROR);
   }
 
   if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.control), CONTROL_BITS_SIZE, isTargeted); not isWritten) {
-    portEXIT_CRITICAL(&spinlock);
     return std::unexpected(MessageError::CONTROL_FIELD_WRITE_ERROR);
   }
 
   if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.length), LENGTH_BITS_SIZE, isTargeted); not isWritten) {
-    portEXIT_CRITICAL(&spinlock);
     return std::unexpected(MessageError::LENGTH_FIELD_WRITE_ERROR);
   }
 
   for (Size i = 0; i < message.length; ++i) {
     if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.data[i]), DATA_BITS_SIZE, isTargeted); not isWritten) {
-      portEXIT_CRITICAL(&spinlock);
       return std::unexpected(MessageError::DATA_FIELD_WRITE_ERROR);
     }
   }
-
-  portEXIT_CRITICAL(&spinlock);
 
   return std::monostate();
 }

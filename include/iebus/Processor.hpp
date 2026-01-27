@@ -64,6 +64,7 @@ private:
 
 private:
   bool m_isRegistered = false;
+  bool m_isRegisterRequest = false;
 };
 
 } // namespace iebus
