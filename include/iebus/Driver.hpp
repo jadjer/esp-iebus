@@ -18,8 +18,8 @@
 
 #pragma once
 
+#include <iebus/Message.hpp>
 #include <iebus/Timer.hpp>
-#include <iebus/types.hpp>
 #include <optional>
 
 /**
@@ -32,6 +32,13 @@ namespace iebus {
  * IEBus Driver
  */
 class Driver {
+public:
+  using OptBit     = std::optional<Bit>;
+  using OptBool    = std::optional<bool>;
+  using OptData    = std::optional<Data>;
+  using OptTime    = std::optional<Timer::Time>;
+  using OptAddress = std::optional<Address>;
+
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
 
@@ -63,15 +70,21 @@ public:
   /**
    * Enable IEBus transmitter
    */
-  auto enable() noexcept -> void;
+  auto enable() const noexcept -> void;
   /**
    * Disable IEBus transmitter
    */
-  auto disable() noexcept -> void;
+  auto disable() const noexcept -> void;
 
 public:
-  auto enableTest() const noexcept -> void;
-  auto disableTest() const noexcept -> void;
+  /**
+   * START INDICATOR FOR DEBUG
+   */
+  auto startMessageIndicator() const noexcept -> void;
+  /**
+   * STOP INDICATOR FOR DEBUG
+   */
+  auto stopMessageIndicator() const noexcept -> void;
 
 public:
   /**
@@ -83,20 +96,20 @@ public:
    * Get bit from IEBus
    * @return Bit
    */
-  [[nodiscard]] auto readBit() const noexcept -> std::optional<Bit>;
+  [[nodiscard]] auto readBit() const noexcept -> OptBit;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readField(Size numBits, bool sendAck, std::optional<Address> optionalAddress = std::nullopt) const noexcept -> std::optional<Data>;
+  [[nodiscard]] auto readField(Size numBits, OptBool optWriteAck = std::nullopt, OptAddress optAddress = std::nullopt) const noexcept -> OptData;
 
 private:
   /**
    * Read pulse width from IEBus
    * @return Pulse width time
    */
-  [[nodiscard]] auto readPulseWidth(Timer::Time waitTimeoutUS, Timer::Time pulseTimeoutUS) const noexcept -> std::optional<Timer::Time>;
+  [[nodiscard]] auto readPulseWidth(Timer::Time waitTimeoutUS, Timer::Time pulseTimeoutUS) const noexcept -> OptTime;
 
 public:
   /**
@@ -114,7 +127,7 @@ public:
    * @param data data bits
    * @param numBits data size
    */
-  [[nodiscard]] auto writeField(Data data, Size numBits, std::optional<bool> optionalAck = std::nullopt) const noexcept -> bool;
+  [[nodiscard]] auto writeField(Data data, Size numBits, OptBool optReadAck = std::nullopt) const noexcept -> bool;
 
 private:
   /**
@@ -131,9 +144,6 @@ private:
 private:
   Timer m_lowTimer;
   Timer m_highTimer;
-
-private:
-  bool m_enable   = false;
 };
 
 } // namespace iebus

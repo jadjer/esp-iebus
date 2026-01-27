@@ -19,7 +19,6 @@
 #pragma once
 
 #include <iebus/Message.hpp>
-#include <iebus/types.hpp>
 
 /**
  * @namespace iebus::common
@@ -31,10 +30,5 @@ namespace iebus::common {
  * @param message
  */
 auto printMessage(Message const& message) -> void;
-/**
- * Print message error
- * @param messageError
- */
-auto printMessageError(MessageError messageError) -> void;
 
 } // namespace iebus::common

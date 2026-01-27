@@ -19,7 +19,7 @@
 #pragma once
 
 #include <array>
-#include <iebus/types.hpp>
+#include <cstdint>
 
 /**
  * @namespace iebus
@@ -32,18 +32,47 @@ auto constexpr MAX_MESSAGE_SIZE = 256;
 
 }
 
-using Bytes = std::array<Byte, MAX_MESSAGE_SIZE>;
+using Bit     = std::uint8_t;
+using Pin     = std::uint8_t;
+using Byte    = std::uint8_t;
+using Data    = std::uint16_t;
+using Size    = std::size_t;
+using Bytes   = std::array<Byte, MAX_MESSAGE_SIZE>;
+using Address = std::uint16_t;
+
+enum class BroadcastType : Bit {
+  BROADCAST  = 0x0,
+  DEVICE = 0x1,
+};
+
+enum class AckType : Bit {
+  ACK = 0x0,
+  NAK = 0x1,
+};
+
+enum class ControlType : Byte {
+  READ_SLAVE_STATUS            = 0x0,
+  READ_DATA_AND_LOCK           = 0x3,
+  READ_LOCK_ADDRESS_LOW_ORDER  = 0x4,
+  READ_LOCK_ADDRESS_HIGH_ORDER = 0x5,
+  READ_SLAVE_STATUS_AND_UNLOCK = 0x6,
+  READ_DATA                    = 0x7,
+  WRITE_COMMAND_AND_LOCK       = 0xA,
+  WRITE_DATA_AND_LOCK          = 0xB,
+  WRITE_COMMAND                = 0xE,
+  WRITE_DATA                   = 0xF,
+};
 
 /**
  * @class Message
  */
 struct Message {
-  BroadcastType broadcast;
-  Address master;
-  Address slave;
-  ControlType control;
-  Size length;
-  Bytes data;
+  Address master          = 0;
+  Address slave           = 0;
+  BroadcastType broadcast = BroadcastType::DEVICE;
+  ControlType control     = ControlType::WRITE_DATA;
+  Size length             = 0;
+  Bytes data              = {};
 };
 
 } // namespace iebus

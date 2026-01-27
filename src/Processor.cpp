@@ -55,8 +55,8 @@ auto Processor::processMessage(Message const& message) noexcept -> MessageList {
 
 auto Processor::handleCommandStart(Message const& message) noexcept -> MessageList {
   auto const masterAddress = message.master;
-  auto const commandBit = static_cast<Bit>(Command::REGISTER);
-  auto const uniqueBit = message.data[1];
+  auto const commandBit    = static_cast<Bit>(Command::REGISTER);
+  auto const uniqueBit     = message.data[1];
 
   return {
       createCommand(masterAddress, {commandBit, uniqueBit, 0x01, 0x02, 0x85, 0x93}, 6),
@@ -93,11 +93,11 @@ auto Processor::checkSlaveAddress(Message const& message) const -> bool {
 }
 
 auto Processor::createCommand(Address const target, Bytes const data, Size const length) const noexcept -> Message {
-  return Message{.broadcast = BroadcastType::FOR_DEVICE, .master = m_address, .slave = target, .control = ControlType::WRITE_COMMAND, .length = length, .data = data};
+  return Message{.master = m_address, .slave = target, .broadcast = BroadcastType::DEVICE, .control = ControlType::WRITE_COMMAND, .length = length, .data = data};
 }
 
 auto Processor::createBroadcastCommand(Bytes const data, Size const length) const noexcept -> Message {
-  return Message{.broadcast = BroadcastType::BROADCAST, .master = m_address, .slave = BROADCAST_ADDRESS, .control = ControlType::WRITE_COMMAND, .length = length, .data = data};
+  return Message{.master = m_address, .slave = BROADCAST_ADDRESS, .broadcast = BroadcastType::BROADCAST, .control = ControlType::WRITE_COMMAND, .length = length, .data = data};
 }
 
 } // namespace iebus

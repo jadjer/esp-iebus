@@ -19,7 +19,6 @@
 #pragma once
 
 #include <iebus/Message.hpp>
-#include <iebus/types.hpp>
 #include <vector>
 
 namespace iebus {

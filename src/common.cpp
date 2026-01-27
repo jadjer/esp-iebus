@@ -27,36 +27,6 @@ namespace iebus::common {
 
 namespace {
 
-auto messageErrorToString(MessageError const error) -> char const* {
-  switch (error) {
-  case MessageError::CONTROLLER_DISABLED: return "CONTROLLER_DISABLED";
-  case MessageError::BUS_IS_BUSY: return "BUS_IS_BUSY";
-
-  case MessageError::START_BIT_READ_ERROR: return "START_BIT_READ_ERROR";
-  case MessageError::START_BIT_WRITE_ERROR: return "START_BIT_WRITE_ERROR";
-
-  case MessageError::BROADCAST_BIT_READ_ERROR: return "BROADCAST_BIT_READ_ERROR";
-  case MessageError::BROADCAST_BIT_WRITE_ERROR: return "BROADCAST_BIT_WRITE_ERROR";
-
-  case MessageError::MASTER_ADDRESS_FIELD_READ_ERROR: return "MASTER_ADDRESS_FIELD_READ_ERROR";
-  case MessageError::MASTER_ADDRESS_FIELD_WRITE_ERROR: return "MASTER_ADDRESS_FIELD_WRITE_ERROR";
-
-  case MessageError::SLAVE_ADDRESS_FIELD_READ_ERROR: return "SLAVE_ADDRESS_FIELD_READ_ERROR";
-  case MessageError::SLAVE_ADDRESS_FIELD_WRITE_ERROR: return "SLAVE_ADDRESS_FIELD_WRITE_ERROR";
-
-  case MessageError::CONTROL_FIELD_READ_ERROR: return "CONTROL_FIELD_READ_ERROR";
-  case MessageError::CONTROL_FIELD_WRITE_ERROR: return "CONTROL_FIELD_WRITE_ERROR";
-
-  case MessageError::LENGTH_FIELD_READ_ERROR: return "LENGTH_FIELD_READ_ERROR";
-  case MessageError::LENGTH_FIELD_WRITE_ERROR: return "LENGTH_FIELD_WRITE_ERROR";
-
-  case MessageError::DATA_FIELD_READ_ERROR: return "DATA_FIELD_READ_ERROR";
-  case MessageError::DATA_FIELD_WRITE_ERROR: return "DATA_FIELD_WRITE_ERROR";
-
-  default: return "UNKNOWN_ERROR";
-  }
-}
-
 auto controlTypeToString(ControlType const controlType) -> char const* {
   switch (controlType) {
   case ControlType::READ_SLAVE_STATUS: return "RSS";
@@ -76,7 +46,7 @@ auto controlTypeToString(ControlType const controlType) -> char const* {
 } // namespace
 
 auto printMessage(Message const& message) -> void {
-  auto const broadcast = ((message.broadcast == BroadcastType::FOR_DEVICE) ? "D" : "B");
+  auto const broadcast = ((message.broadcast == BroadcastType::DEVICE) ? "D" : "B");
   auto const control   = controlTypeToString(message.control);
 
   std::printf("%s %03X %03X %s %hu [", broadcast, message.master, message.slave, control, message.length);
@@ -85,10 +55,6 @@ auto printMessage(Message const& message) -> void {
     std::printf(" %02X", message.data[i]);
   }
   std::printf("]\n");
-}
-
-auto printMessageError(MessageError const messageError) -> void {
-  std::printf("Error: %s\n", messageErrorToString(messageError));
 }
 
 } // namespace iebus::common

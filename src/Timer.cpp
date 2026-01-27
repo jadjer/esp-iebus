@@ -8,11 +8,11 @@ namespace iebus {
 
 namespace {
 
-auto constexpr TIMER_RESOLUTION_HZ     = 1'000'000;
-auto constexpr MICROSECONDS_PER_SECOND = 1'000'000;
+Timer::Time constexpr TIMER_RESOLUTION_HZ     = 40'000'000;
+Timer::Time constexpr MICROSECONDS_PER_SECOND = 1'000'000;
 
 auto constexpr convertCountsToTimeUS(Timer::Time const counts) -> Timer::Time {
-  return static_cast<Timer::Time>((counts * MICROSECONDS_PER_SECOND) / TIMER_RESOLUTION_HZ);
+  return ((counts * MICROSECONDS_PER_SECOND) / TIMER_RESOLUTION_HZ);
 }
 
 } // namespace

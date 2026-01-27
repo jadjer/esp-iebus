@@ -24,144 +24,95 @@ namespace iebus {
 
 namespace {
 
-auto constexpr ADDRESS_BITS_SIZE = 12;
-auto constexpr CONTROL_BITS_SIZE = 4;
-auto constexpr LENGTH_BITS_SIZE  = 8;
-auto constexpr DATA_BITS_SIZE    = 8;
+Size constexpr ADDRESS_BITS_SIZE = 12;
+Size constexpr CONTROL_BITS_SIZE = 4;
+Size constexpr LENGTH_BITS_SIZE  = 8;
+Size constexpr DATA_BITS_SIZE    = 8;
 
 } // namespace
 
 Controller::Controller(Driver const& driver, Address const address) noexcept : m_address(address), m_driver(driver) {
 }
 
-auto IRAM_ATTR Controller::readMessage() const noexcept -> std::expected<Message, MessageError> {
-  if (not m_driver.isEnabled()) {
-    return std::unexpected(MessageError::CONTROLLER_DISABLED);
-  }
-
-  // START_BIT
-  auto const isStarted = m_driver.readStartBit();
-  if (not isStarted) {
-    return std::unexpected(MessageError::START_BIT_READ_ERROR);
-  }
-
-  m_driver.enableTest();
+auto IRAM_ATTR Controller::readMessage() const noexcept -> Controller::OptMessage {
+  if (not m_driver.isEnabled()) return std::nullopt;
+  if (not m_driver.readStartBit()) return std::nullopt;
 
   Message message = {};
 
-  // BROADCAST
-  auto const optionalBroadcastBit = m_driver.readBit();
-  if (not optionalBroadcastBit.has_value()) {
-    m_driver.disableTest();
-    return std::unexpected(MessageError::BROADCAST_BIT_READ_ERROR);
+  m_driver.startMessageIndicator();
+
+  auto const optBroadcastBit = m_driver.readBit();
+  if (not optBroadcastBit) {
+    m_driver.stopMessageIndicator();
+    return std::nullopt;
   }
+  message.broadcast = static_cast<BroadcastType>(*optBroadcastBit);
 
-  auto const broadcastBit = optionalBroadcastBit.value();
-  message.broadcast       = static_cast<BroadcastType>(broadcastBit);
-
-  auto const forDevice = static_cast<bool>(broadcastBit);
-
-  // MASTER
-  auto const optionalMasterData = m_driver.readField(ADDRESS_BITS_SIZE, false);
-  if (not optionalMasterData.has_value()) {
-    m_driver.disableTest();
-    return std::unexpected(MessageError::MASTER_ADDRESS_FIELD_READ_ERROR);
+  auto const optMasterData = m_driver.readField(ADDRESS_BITS_SIZE);
+  if (not optMasterData) {
+    m_driver.stopMessageIndicator();
+    return std::nullopt;
   }
+  message.master = static_cast<Address>(*optMasterData);
 
-  auto const masterData = optionalMasterData.value();
-  message.master        = static_cast<Address>(masterData);
+  auto const forDevice = (message.broadcast == BroadcastType::DEVICE);
 
-  // SLAVE
-  auto const optionalSlaveData = m_driver.readField(ADDRESS_BITS_SIZE, forDevice, m_address);
-  if (not optionalSlaveData.has_value()) {
-    m_driver.disableTest();
-    return std::unexpected(MessageError::SLAVE_ADDRESS_FIELD_READ_ERROR);
+  auto const optSlaveData = m_driver.readField(ADDRESS_BITS_SIZE, forDevice, m_address);
+  if (not optSlaveData.has_value()) {
+    m_driver.stopMessageIndicator();
+    return std::nullopt;
   }
-
-  auto const slaveData = optionalSlaveData.value();
-  message.slave        = static_cast<Address>(slaveData);
+  message.slave = static_cast<Address>(*optSlaveData);
 
   auto const isTarget = (forDevice and (message.slave == m_address));
 
-  // CONTROL
-  auto const optionalControlData = m_driver.readField(CONTROL_BITS_SIZE, isTarget);
-  if (not optionalControlData.has_value()) {
-    m_driver.disableTest();
-    return std::unexpected(MessageError::CONTROL_FIELD_READ_ERROR);
+  auto const optControlData = m_driver.readField(CONTROL_BITS_SIZE, isTarget);
+  if (not optControlData) {
+    m_driver.stopMessageIndicator();
+    return std::nullopt;
   }
+  message.control = static_cast<ControlType>(*optControlData);
 
-  auto const controlData = optionalControlData.value();
-  message.control        = static_cast<ControlType>(controlData);
-
-  // LENGTH
-  auto const optionalLengthData = m_driver.readField(LENGTH_BITS_SIZE, isTarget);
-  if (not optionalLengthData.has_value()) {
-    m_driver.disableTest();
-    return std::unexpected(MessageError::LENGTH_FIELD_READ_ERROR);
+  auto const optLengthData = m_driver.readField(LENGTH_BITS_SIZE, isTarget);
+  if (not optLengthData) {
+    m_driver.stopMessageIndicator();
+    return std::nullopt;
   }
+  message.length = static_cast<Size>(*optLengthData);
+  message.length = ((message.length == 0) ? 256 : message.length);
 
-  auto const lengthData = optionalLengthData.value();
-  message.length        = ((lengthData == 0) ? 256 : static_cast<Size>(lengthData));
-
-  // DATA
   for (Size i = 0; i < message.length; ++i) {
-    auto const optionalData = m_driver.readField(DATA_BITS_SIZE, isTarget);
-    if (not optionalData.has_value()) {
-      m_driver.disableTest();
-      return std::unexpected(MessageError::DATA_FIELD_READ_ERROR);
+    auto const optData = m_driver.readField(DATA_BITS_SIZE, isTarget);
+    if (not optData) {
+      m_driver.stopMessageIndicator();
+      return std::nullopt;
     }
-
-    auto const data = optionalData.value();
-    message.data[i] = static_cast<Byte>(data);
+    message.data[i] = static_cast<Byte>(*optData);
   }
 
-  m_driver.disableTest();
+  m_driver.stopMessageIndicator();
 
   return message;
 }
 
-auto IRAM_ATTR Controller::writeMessage(Message const& message) const noexcept -> std::expected<std::monostate, MessageError> {
-  if (not m_driver.isEnabled()) {
-    return std::unexpected(MessageError::CONTROLLER_DISABLED);
-  }
+auto IRAM_ATTR Controller::writeMessage(Message const& message) const noexcept -> bool {
+  auto const forDevice = (message.broadcast == BroadcastType::DEVICE);
 
-  if (not m_driver.isBusFree()) {
-    return std::unexpected(MessageError::BUS_IS_BUSY);
-  }
-
-  if (auto const isWritten = m_driver.writeStartBit(); not isWritten) {
-    return std::unexpected(MessageError::START_BIT_WRITE_ERROR);
-  }
-
-  if (auto const isWritten = m_driver.writeBit(static_cast<Bit>(message.broadcast)); not isWritten) {
-    return std::unexpected(MessageError::BROADCAST_BIT_WRITE_ERROR);
-  }
-
-  if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.master), ADDRESS_BITS_SIZE, false); not isWritten) {
-    return std::unexpected(MessageError::MASTER_ADDRESS_FIELD_WRITE_ERROR);
-  }
-
-  auto const isTargeted = (message.broadcast == BroadcastType::FOR_DEVICE);
-
-  if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.slave), ADDRESS_BITS_SIZE, isTargeted); not isWritten) {
-    return std::unexpected(MessageError::SLAVE_ADDRESS_FIELD_WRITE_ERROR);
-  }
-
-  if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.control), CONTROL_BITS_SIZE, isTargeted); not isWritten) {
-    return std::unexpected(MessageError::CONTROL_FIELD_WRITE_ERROR);
-  }
-
-  if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.length), LENGTH_BITS_SIZE, isTargeted); not isWritten) {
-    return std::unexpected(MessageError::LENGTH_FIELD_WRITE_ERROR);
-  }
+  if (not m_driver.isEnabled()) return false;
+  if (not m_driver.isBusFree()) return false;
+  if (not m_driver.writeStartBit()) return false;
+  if (not m_driver.writeBit(static_cast<Bit>(message.broadcast))) return false;
+  if (not m_driver.writeField(static_cast<Data>(message.master), ADDRESS_BITS_SIZE)) return false;
+  if (not m_driver.writeField(static_cast<Data>(message.slave), ADDRESS_BITS_SIZE, forDevice)) return false;
+  if (not m_driver.writeField(static_cast<Data>(message.control), CONTROL_BITS_SIZE, forDevice)) return false;
+  if (not m_driver.writeField(static_cast<Data>(message.length), LENGTH_BITS_SIZE, forDevice)) return false;
 
   for (Size i = 0; i < message.length; ++i) {
-    if (auto const isWritten = m_driver.writeField(static_cast<Data>(message.data[i]), DATA_BITS_SIZE, isTargeted); not isWritten) {
-      return std::unexpected(MessageError::DATA_FIELD_WRITE_ERROR);
-    }
+    if (not m_driver.writeField(static_cast<Data>(message.data[i]), DATA_BITS_SIZE, forDevice)) return false;
   }
 
-  return std::monostate();
+  return true;
 }
 
 } // namespace iebus
