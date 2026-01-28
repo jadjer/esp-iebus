@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <optional>
+#include <expected>
 #include <iebus/Driver.hpp>
 #include <iebus/Message.hpp>
 
@@ -33,7 +33,8 @@ namespace iebus {
  */
 class Controller {
 public:
-  using OptMessage = std::optional<Message>;
+  using NoneOrError = std::expected<void, MessageError>;
+  using MessageOrError = std::expected<Message, MessageError>;
 
 public:
   /**
@@ -48,13 +49,13 @@ public:
    * Read the message from IEBus
    * @return Message or MessageError
    */
-  [[nodiscard]] auto readMessage() const noexcept -> OptMessage;
+  [[nodiscard]] auto readMessage() const noexcept -> MessageOrError;
   /**
    * Write the message to IEBus
    * @param message Message
    * @return None or MessageError
    */
-  [[nodiscard]] auto writeMessage(Message const& message) const noexcept -> bool;
+  [[nodiscard]] auto writeMessage(Message const& message) const noexcept -> NoneOrError;
 
 private:
   Address const m_address;

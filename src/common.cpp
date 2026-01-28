@@ -43,18 +43,44 @@ auto controlTypeToString(ControlType const controlType) -> char const* {
   }
 }
 
+auto messageErrorToString(MessageError const messageError) -> char const* {
+  switch (messageError) {
+  case MessageError::DRIVER_DISABLED: return "DD";
+  case MessageError::BUS_IS_BUSY: return "BB";
+  case MessageError::START_BIT_READ_ERROR: return "SBR";
+  case MessageError::START_BIT_WRITE_ERROR: return "SBW";
+  case MessageError::BROADCAST_BIT_READ_ERROR: return "BBR";
+  case MessageError::BROADCAST_BIT_WRITE_ERROR: return "BBW";
+  case MessageError::MASTER_FIELD_READ_ERROR: return "MFR";
+  case MessageError::MASTER_FIELD_WRITE_ERROR: return "MFW";
+  case MessageError::SLAVE_FIELD_READ_ERROR: return "SFR";
+  case MessageError::SLAVE_FIELD_WRITE_ERROR: return "SFW";
+  case MessageError::CONTROL_FIELD_READ_ERROR: return "CFR";
+  case MessageError::CONTROL_FIELD_WRITE_ERROR: return "CFW";
+  case MessageError::LENGTH_FIELD_READ_ERROR: return "LFR";
+  case MessageError::LENGTH_FIELD_WRITE_ERROR: return "LFW";
+  case MessageError::DATA_FIELD_READ_ERROR: return "DFR";
+  case MessageError::DATA_FIELD_WRITE_ERROR: return "DFW";
+  default: return "UNK";
+  }
+}
+
 } // namespace
 
 auto printMessage(Message const& message) -> void {
   auto const broadcast = ((message.broadcast == BroadcastType::DEVICE) ? "D" : "B");
   auto const control   = controlTypeToString(message.control);
 
-  std::printf("%s %03X %03X %s %hu [", broadcast, message.master, message.slave, control, message.length);
+  std::printf("%s %03X %03X %s [", broadcast, message.master, message.slave, control);
   std::printf("%02X", message.data[0]);
   for (auto i = 1; i < message.length; ++i) {
     std::printf(" %02X", message.data[i]);
   }
   std::printf("]\n");
+}
+
+auto printMessageError(const MessageError& messageError) -> void {
+  std::printf("E %s\n", messageErrorToString(messageError));
 }
 
 } // namespace iebus::common

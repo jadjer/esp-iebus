@@ -52,7 +52,7 @@ private:
   [[nodiscard]] auto createCommandRestart() const noexcept -> MessageList;
 
 private:
-  [[nodiscard]] auto checkSlaveAddress(Message const& message) const -> bool;
+  [[nodiscard]] auto checkMessageForMe(Message const& message) const -> bool;
 
 private:
   [[nodiscard]] auto createCommand(Address target, Bytes data, Size length) const noexcept -> Message;

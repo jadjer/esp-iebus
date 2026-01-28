@@ -30,5 +30,10 @@ namespace iebus::common {
  * @param message
  */
 auto printMessage(Message const& message) -> void;
+/**
+ * Print error message
+ * @param messageError
+ */
+auto printMessageError(MessageError const& messageError) -> void;
 
 } // namespace iebus::common

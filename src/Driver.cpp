@@ -118,21 +118,19 @@ auto IRAM_ATTR Driver::stopMessageIndicator() const noexcept -> void {
 }
 
 auto IRAM_ATTR Driver::readStartBit() const noexcept -> bool {
-  auto const optPulseWidth = readPulseWidth(TIMEOUT_INFINITY_US, TIMEOUT_INFINITY_US);
-  if (not optPulseWidth.has_value()) return false;
+  auto const optPulseWidth = readPulseWidth(TIMEOUT_INFINITY_US, START_BIT_TOTAL_US);
+  if (not optPulseWidth) return false;
 
-  auto const pulseWidth = optPulseWidth.value();
-  if (pulseWidth > START_BIT_TOTAL_US) return false;
+  auto const pulseWidth = (*optPulseWidth);
 
   return inRange(pulseWidth, START_BIT_HIGH_US, START_BIT_THRESHOLD_US);
 }
 
 auto IRAM_ATTR Driver::readBit() const noexcept -> Driver::OptBit {
   auto const optPulseWidth = readPulseWidth(DATA_BIT_TOTAL_US, DATA_BIT_TOTAL_US);
-  if (not optPulseWidth.has_value()) return std::nullopt;
+  if (not optPulseWidth) return std::nullopt;
 
-  auto const pulseWidth = optPulseWidth.value();
-  if (pulseWidth > DATA_BIT_TOTAL_US) return std::nullopt;
+  auto const pulseWidth = (*optPulseWidth);
 
   if (inRange(pulseWidth, DATA_BIT_0_HIGH_US, DATA_BIT_THRESHOLD_US)) return 0;
   if (inRange(pulseWidth, DATA_BIT_1_HIGH_US, DATA_BIT_THRESHOLD_US)) return 1;
@@ -140,7 +138,7 @@ auto IRAM_ATTR Driver::readBit() const noexcept -> Driver::OptBit {
   return std::nullopt;
 }
 
-auto Driver::readField(Size const numBits, Driver::OptBool const optWriteAck, Driver::OptAddress const optAddress) const noexcept -> Driver::OptData {
+auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optWriteAck, Driver::OptAddress const optAddress) const noexcept -> Driver::OptData {
   Address const address = optAddress.value_or(0);
 
   Bit parity            = 0;
@@ -152,7 +150,7 @@ auto Driver::readField(Size const numBits, Driver::OptBool const optWriteAck, Dr
     auto const optBit = readBit();
     if (not optBit) return std::nullopt;
 
-    auto const bit = *optBit;
+    auto const bit = (*optBit);
 
     field = ((field << 1) | bit);
     parity ^= bit;
@@ -167,7 +165,6 @@ auto Driver::readField(Size const numBits, Driver::OptBool const optWriteAck, Dr
 
   auto const optParityBit = readBit();
   if (not optParityBit) return std::nullopt;
-
   if ((*optParityBit) != parity) isParityValid = false;
 
   if (optWriteAck) {
@@ -206,7 +203,7 @@ auto IRAM_ATTR Driver::readPulseWidth(Timer::Time const waitTimeoutUS, Timer::Ti
 }
 
 auto IRAM_ATTR Driver::writeStartBit() const noexcept -> bool {
-  return writePulseWidth(FREE_BUS_INTERVAL_US, START_BIT_HIGH_US, START_BIT_TOTAL_US);
+  return writePulseWidth(TIMEOUT_INFINITY_US, START_BIT_HIGH_US, START_BIT_TOTAL_US);
 }
 
 auto IRAM_ATTR Driver::writeBit(Bit const bit) const noexcept -> bool {
@@ -247,12 +244,8 @@ auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, Driver::O
 }
 
 auto IRAM_ATTR Driver::writePulseWidth(Timer::Time const waitTimeoutUS, Timer::Time const pulseUS, Timer::Time const frameUS) const noexcept -> bool {
-  if (isBusHigh()) {
-    m_highTimer.reset();
-
-    while (isBusHigh()) {
-      if (m_highTimer.getTimeUS() > waitTimeoutUS) return false;
-    }
+  while (isBusHigh()) {
+    if (m_highTimer.getTimeUS() > waitTimeoutUS) return false;
   }
 
   m_highTimer.reset();
