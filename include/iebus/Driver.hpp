@@ -78,63 +78,83 @@ public:
 
 public:
   /**
-   * START INDICATOR FOR DEBUG
-   */
-  auto startMessageIndicator() const noexcept -> void;
-  /**
-   * STOP INDICATOR FOR DEBUG
-   */
-  auto stopMessageIndicator() const noexcept -> void;
-
-public:
-  /**
    * Read start bit from IEBus
    * @return bool
    */
-  [[nodiscard]] auto readStartBit() const noexcept -> bool;
+  [[nodiscard]] auto readStartBit() noexcept -> bool;
   /**
    * Get bit from IEBus
    * @return Bit
    */
-  [[nodiscard]] auto readBit() const noexcept -> OptBit;
+  [[nodiscard]] auto readBit() noexcept -> OptBit;
   /**
    * Get bits data from IEBus
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readField(Size numBits, OptBool optWriteAck = std::nullopt, OptAddress optAddress = std::nullopt) const noexcept -> OptData;
+  [[nodiscard]] auto readField(Size numBits, OptBool optAck = std::nullopt, OptAddress optAddress = std::nullopt) noexcept -> OptData;
+  /**
+   * Read ack from IEBUs
+   * @return ACK type
+   */
+  [[nodiscard]] auto readAck() noexcept -> AckType;
 
 private:
   /**
-   * Read pulse width from IEBus
+   * Read pulse level from IEBus after start pulse time
    * @return Pulse width time
    */
-  [[nodiscard]] auto readPulseWidth(Timer::Time waitTimeoutUS, Timer::Time pulseTimeoutUS) const noexcept -> OptTime;
+  [[nodiscard]] auto readPulseWidth(Timer::Time waitPulseTimeout, Timer::Time pulseWidthTimeout) noexcept -> OptTime;
+  /**
+   * Get value from transceiver (HA12187FP)
+   * @return Bit
+   */
+  [[nodiscard]] auto readLevel() const -> Bit;
 
 public:
   /**
    * Get start bit from IEBus
    * @return
    */
-  [[nodiscard]] auto writeStartBit() const noexcept -> bool;
+  [[nodiscard]] auto writeStartBit() noexcept -> bool;
   /**
    * Send bit to IEBus
    * @param bit
    */
-  [[nodiscard]] auto writeBit(Bit bit) const noexcept -> bool;
+  [[nodiscard]] auto writeBit(Bit bit) noexcept -> bool;
   /**
    * Send data bits to IEBus
    * @param data data bits
    * @param numBits data size
    */
-  [[nodiscard]] auto writeField(Data data, Size numBits, OptBool optReadAck = std::nullopt) const noexcept -> bool;
+  [[nodiscard]] auto writeField(Data data, Size numBits, OptBool optAck = std::nullopt) noexcept -> bool;
+  /**
+   * Send ACK bit to IEBus
+   * @param ackType
+   */
+  [[nodiscard]] auto writeAck(AckType ackType) -> bool;
 
 private:
   /**
-   * Write pulse width
-   * @param pulseWidth
+   * Write pulse width to IEBus from transceiver (HA12187FP)
+   * @param previousFrameUS Previous frame width
+   * @param pulseUS
    */
-  [[nodiscard]] auto writePulseWidth(Timer::Time waitTimeoutUS, Timer::Time pulseUS, Timer::Time frameUS) const noexcept -> bool;
+  auto writeFrame(Timer::Time pulse, Timer::Time frame) noexcept -> void;
+  /**
+   * Set value to transceiver (HA12187FP)
+   * @param bit
+   */
+  auto writeLevel(Bit bit) const -> void;
+
+private:
+  /**
+   * Wait level from transceiver (HA12187FP)
+   * @param bit Level
+   * @param timeout Wait timeous
+   * @return bool
+   */
+  [[nodiscard]] auto waitLevel(Bit targetLevel, Timer::Time timeoutUS) -> bool;
 
 private:
   Pin const m_rxPin;
@@ -144,6 +164,7 @@ private:
 private:
   Timer m_lowTimer;
   Timer m_highTimer;
+  Timer m_waitTimer;
 };
 
 } // namespace iebus

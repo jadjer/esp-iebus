@@ -18,37 +18,23 @@
 
 #include "iebus/Driver.hpp"
 
-#include <algorithm>
 #include <driver/gpio.h>
 #include <esp_attr.h>
-#include <limits>
 
 namespace iebus {
 
 namespace {
 
-gpio_num_t constexpr INDICATOR_PIN = GPIO_NUM_36;
+Timer::Time constexpr START_BIT_TOTAL_US = 193;
+Timer::Time constexpr START_BIT_HIGH_US  = 171;
 
-Timer::Time constexpr FREE_BUS_INTERVAL_US = 500;
+Timer::Time constexpr DATA_BIT_TOTAL_US   = 40;
+Timer::Time constexpr DATA_BIT_1_HIGH_US  = 20;
+Timer::Time constexpr DATA_BIT_0_HIGH_US  = 33;
+Timer::Time constexpr DATA_BIT_NEUTRAL_US = ((DATA_BIT_0_HIGH_US + DATA_BIT_1_HIGH_US + 1) / 2);
 
-Timer::Time constexpr DATA_BIT_TOTAL_US     = 40;
-Timer::Time constexpr DATA_BIT_0_HIGH_US    = 34;
-Timer::Time constexpr DATA_BIT_1_HIGH_US    = 20;
-Timer::Time constexpr DATA_BIT_NEUTRAL_US   = ((DATA_BIT_0_HIGH_US + DATA_BIT_1_HIGH_US) / 2);
-Timer::Time constexpr DATA_BIT_THRESHOLD_US = ((DATA_BIT_TOTAL_US - DATA_BIT_NEUTRAL_US) / 2);
-
-Timer::Time constexpr START_BIT_TOTAL_US     = 190;
-Timer::Time constexpr START_BIT_HIGH_US      = 170;
-Timer::Time constexpr START_BIT_THRESHOLD_US = ((START_BIT_TOTAL_US - START_BIT_HIGH_US) / 2);
-
-Timer::Time constexpr TIMEOUT_INFINITY_US = std::numeric_limits<std::uint64_t>::max();
-
-template <typename T> auto constexpr inRange(T const a, T const b, T const threshold) -> bool {
-  auto const [min, max] = std::minmax(a, b);
-  auto const isValid    = ((max - min) <= threshold);
-
-  return isValid;
-}
+Timer::Time constexpr PROCESS_COMPENSATION      = 3;
+Timer::Time constexpr MESSAGE_SAFE_INTERVALE_US = (DATA_BIT_TOTAL_US * 10);
 
 } // namespace
 
@@ -63,7 +49,7 @@ Driver::Driver(Pin const rx, Pin const tx, Pin const enable) noexcept : m_rxPin(
   gpio_config(&inputConfiguration);
 
   gpio_config_t const outputConfiguration = {
-      .pin_bit_mask = ((1ULL << m_txPin) | (1ULL << INDICATOR_PIN)),
+      .pin_bit_mask = ((1ULL << m_txPin)),
       .mode         = GPIO_MODE_OUTPUT,
       .pull_up_en   = GPIO_PULLUP_DISABLE,
       .pull_down_en = GPIO_PULLDOWN_DISABLE,
@@ -86,59 +72,44 @@ auto IRAM_ATTR Driver::isEnabled() const noexcept -> bool {
 }
 
 auto IRAM_ATTR Driver::isBusLow() const noexcept -> bool {
-  return (gpio_get_level(static_cast<gpio_num_t>(m_rxPin)) == 0);
+  return (readLevel() == 0);
 }
 
 auto IRAM_ATTR Driver::isBusHigh() const noexcept -> bool {
-  return (gpio_get_level(static_cast<gpio_num_t>(m_rxPin)) == 1);
+  return (readLevel() == 1);
 }
 
 auto IRAM_ATTR Driver::isBusFree() const noexcept -> bool {
   if (isBusHigh()) return false;
 
-  return (m_lowTimer.getTimeUS() >= FREE_BUS_INTERVAL_US);
+  return (m_lowTimer.getTime() > MESSAGE_SAFE_INTERVALE_US);
 }
 
 auto IRAM_ATTR Driver::enable() const noexcept -> void {
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
+  writeLevel(0);
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), 1);
 }
 
 auto IRAM_ATTR Driver::disable() const noexcept -> void {
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
+  writeLevel(0);
   gpio_set_level(static_cast<gpio_num_t>(m_enablePin), 0);
 }
 
-auto IRAM_ATTR Driver::startMessageIndicator() const noexcept -> void {
-  gpio_set_level(INDICATOR_PIN, 1);
-}
-
-auto IRAM_ATTR Driver::stopMessageIndicator() const noexcept -> void {
-  gpio_set_level(INDICATOR_PIN, 0);
-}
-
-auto IRAM_ATTR Driver::readStartBit() const noexcept -> bool {
-  auto const optPulseWidth = readPulseWidth(TIMEOUT_INFINITY_US, START_BIT_TOTAL_US);
+auto IRAM_ATTR Driver::readStartBit() noexcept -> bool {
+  auto const optPulseWidth = readPulseWidth(DATA_BIT_TOTAL_US, START_BIT_TOTAL_US);
   if (not optPulseWidth) return false;
 
-  auto const pulseWidth = (*optPulseWidth);
-
-  return inRange(pulseWidth, START_BIT_HIGH_US, START_BIT_THRESHOLD_US);
+  return ((*optPulseWidth) > DATA_BIT_TOTAL_US);
 }
 
-auto IRAM_ATTR Driver::readBit() const noexcept -> Driver::OptBit {
+auto IRAM_ATTR Driver::readBit() noexcept -> Driver::OptBit {
   auto const optPulseWidth = readPulseWidth(DATA_BIT_TOTAL_US, DATA_BIT_TOTAL_US);
   if (not optPulseWidth) return std::nullopt;
 
-  auto const pulseWidth = (*optPulseWidth);
-
-  if (inRange(pulseWidth, DATA_BIT_0_HIGH_US, DATA_BIT_THRESHOLD_US)) return 0;
-  if (inRange(pulseWidth, DATA_BIT_1_HIGH_US, DATA_BIT_THRESHOLD_US)) return 1;
-
-  return std::nullopt;
+  return (((*optPulseWidth) < DATA_BIT_NEUTRAL_US) ? 1 : 0);
 }
 
-auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optWriteAck, Driver::OptAddress const optAddress) const noexcept -> Driver::OptData {
+auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optAck, Driver::OptAddress const optAddress) noexcept -> Driver::OptData {
   Address const address = optAddress.value_or(0);
 
   Bit parity            = 0;
@@ -152,13 +123,12 @@ auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optWr
 
     auto const bit = (*optBit);
 
-    field = ((field << 1) | bit);
     parity ^= bit;
+    field = ((field << 1) | bit);
 
     if (optAddress and isAddressMatched) {
-      auto const addressBitPosition = (numBits - 1 - i);
+      auto const addressBitPosition = (numBits - i - 1);
       auto const addressBit         = static_cast<Bit>((address >> addressBitPosition) & 1);
-
       if (addressBit != bit) isAddressMatched = false;
     }
   }
@@ -167,13 +137,9 @@ auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optWr
   if (not optParityBit) return std::nullopt;
   if ((*optParityBit) != parity) isParityValid = false;
 
-  if (optWriteAck) {
-    if ((*optWriteAck) and isAddressMatched) {
-      while (m_highTimer.getTimeUS() < DATA_BIT_TOTAL_US) {}
-
-      auto const ackBit = static_cast<Bit>(isParityValid ? AckType::ACK : AckType::NAK);
-      if (not writeBit(ackBit)) return std::nullopt;
-
+  if (optAck) {
+    if ((*optAck) and isAddressMatched) {
+      if (not writeAck(isParityValid ? AckType::ACK : AckType::NAK)) return std::nullopt;
     } else {
       if (not readBit()) return std::nullopt;
     }
@@ -184,81 +150,106 @@ auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optWr
   return field;
 }
 
-auto IRAM_ATTR Driver::readPulseWidth(Timer::Time const waitTimeoutUS, Timer::Time const pulseTimeoutUS) const noexcept -> Driver::OptTime {
-  while (isBusLow()) {
-    if (m_lowTimer.getTimeUS() > waitTimeoutUS) return std::nullopt;
-  }
+auto IRAM_ATTR Driver::readAck() noexcept -> AckType {
+  writeFrame(DATA_BIT_1_HIGH_US, DATA_BIT_NEUTRAL_US);
+
+  auto const busLevel = readLevel();
+
+  while (m_highTimer.getTime() < DATA_BIT_TOTAL_US) {}
+
+  return ((busLevel == 1) ? AckType::ACK : AckType::NAK);
+}
+
+auto IRAM_ATTR Driver::readPulseWidth(Timer::Time const waitPulseTimeout, Timer::Time const pulseWidthTimeout) noexcept -> Driver::OptTime {
+  if (not waitLevel(1, waitPulseTimeout)) return std::nullopt;
 
   m_highTimer.reset();
 
-  while (isBusHigh()) {
-    if (m_highTimer.getTimeUS() > pulseTimeoutUS) return std::nullopt;
-  }
+  if (not waitLevel(0, pulseWidthTimeout)) return std::nullopt;
 
-  auto const pulseWidth = m_highTimer.getTimeUS();
+  auto const pulseWidth = m_highTimer.getTime();
 
   m_lowTimer.reset();
 
   return pulseWidth;
 }
 
-auto IRAM_ATTR Driver::writeStartBit() const noexcept -> bool {
-  return writePulseWidth(TIMEOUT_INFINITY_US, START_BIT_HIGH_US, START_BIT_TOTAL_US);
+auto IRAM_ATTR Driver::readLevel() const -> Bit {
+  return gpio_get_level(static_cast<gpio_num_t>(m_rxPin));
 }
 
-auto IRAM_ATTR Driver::writeBit(Bit const bit) const noexcept -> bool {
-  auto const pulseWidth = (bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US);
+auto IRAM_ATTR Driver::writeStartBit() noexcept -> bool {
+  writeFrame(START_BIT_HIGH_US, START_BIT_TOTAL_US);
 
-  return writePulseWidth(DATA_BIT_TOTAL_US, pulseWidth, DATA_BIT_TOTAL_US);
+  return isBusLow();
 }
 
-auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, Driver::OptBool const optReadAck) const noexcept -> bool {
+auto IRAM_ATTR Driver::writeBit(Bit const bit) noexcept -> bool {
+  auto const high = (bit ? DATA_BIT_1_HIGH_US : DATA_BIT_0_HIGH_US);
+
+  writeFrame(high, DATA_BIT_TOTAL_US);
+
+  return isBusLow();
+}
+
+auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, Driver::OptBool const optAck) noexcept -> bool {
   Bit parity = 0;
 
   for (Size i = 0; i < numBits; ++i) {
-    auto const bitPosition = (numBits - 1 - i);
-    auto const bit         = static_cast<Bit>((data >> bitPosition) & 1);
-
-    parity ^= bit;
+    auto const bit = static_cast<Bit>((data >> (numBits - 1 - i)) & 1);
 
     if (not writeBit(bit)) return false;
+
+    parity ^= bit;
   }
 
-  if (writeBit(parity)) return false;
+  if (not writeBit(parity)) return false;
 
-  if (optReadAck) {
-    if (*optReadAck) {
-      auto const optAckBit = readBit();
-      if (not optAckBit) return false;
-
-      auto const ack = static_cast<AckType>(*optAckBit);
-      if (ack == AckType::NAK) return false;
-
+  if (optAck) {
+    if (*optAck) {
+      if (readAck() == AckType::NAK) return false;
     } else {
-      auto const ackBit = static_cast<Bit>(AckType::NAK);
-      if (writeBit(ackBit)) return false;
+      if (not writeBit(static_cast<Bit>(AckType::NAK))) return false;
     }
   }
 
   return true;
 }
 
-auto IRAM_ATTR Driver::writePulseWidth(Timer::Time const waitTimeoutUS, Timer::Time const pulseUS, Timer::Time const frameUS) const noexcept -> bool {
-  while (isBusHigh()) {
-    if (m_highTimer.getTimeUS() > waitTimeoutUS) return false;
-  }
+auto IRAM_ATTR Driver::writeAck(AckType const ackType) -> bool {
+  auto const high = ((ackType == AckType::ACK) ? DATA_BIT_0_HIGH_US : DATA_BIT_1_HIGH_US);
 
+  if (not waitLevel(1, DATA_BIT_TOTAL_US)) return false;
+
+  writeFrame((high - PROCESS_COMPENSATION), (DATA_BIT_TOTAL_US - PROCESS_COMPENSATION));
+
+  return true;
+}
+
+auto IRAM_ATTR Driver::writeFrame(Timer::Time const pulse, Timer::Time const frame) noexcept -> void {
   m_highTimer.reset();
 
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 1);
-
-  while (m_highTimer.getTimeUS() < pulseUS) {}
-
-  gpio_set_level(static_cast<gpio_num_t>(m_txPin), 0);
+  writeLevel(1);
+  while (m_highTimer.getTime() < pulse) {}
 
   m_lowTimer.reset();
 
-  while (m_highTimer.getTimeUS() < frameUS) {}
+  writeLevel(0);
+  while (m_highTimer.getTime() < frame) {}
+}
+
+auto IRAM_ATTR Driver::writeLevel(Bit const bit) const -> void {
+  gpio_set_level(static_cast<gpio_num_t>(m_txPin), bit);
+}
+
+auto IRAM_ATTR Driver::waitLevel(Bit const targetLevel, Timer::Time const timeoutUS) -> bool {
+  if (readLevel() == targetLevel) return true;
+
+  m_waitTimer.reset();
+
+  while (readLevel() != targetLevel) {
+    if (m_waitTimer.getTime() > timeoutUS) return false;
+  }
 
   return true;
 }

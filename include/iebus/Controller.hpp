@@ -42,26 +42,26 @@ public:
    * @param driver Driver impl
    * @param address Device address
    */
-  Controller(Driver const& driver, Address address) noexcept;
+  Controller(Driver& driver, Address address) noexcept;
 
 public:
   /**
    * Read the message from IEBus
-   * @return Message or MessageError
+   * @return Message or Message error
    */
-  [[nodiscard]] auto readMessage() const noexcept -> MessageOrError;
+  [[nodiscard]] auto readMessage() noexcept -> MessageOrError;
   /**
    * Write the message to IEBus
    * @param message Message
    * @return None or MessageError
    */
-  [[nodiscard]] auto writeMessage(Message const& message) const noexcept -> NoneOrError;
+  [[nodiscard]] auto writeMessage(Message const& message) noexcept -> NoneOrError;
 
 private:
   Address const m_address;
 
 private:
-  Driver const& m_driver;
+  Driver& m_driver;
 };
 
 } // namespace iebus

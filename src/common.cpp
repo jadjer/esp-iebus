@@ -46,7 +46,7 @@ auto controlTypeToString(ControlType const controlType) -> char const* {
 auto messageErrorToString(MessageError const messageError) -> char const* {
   switch (messageError) {
   case MessageError::DRIVER_DISABLED: return "DD";
-  case MessageError::BUS_IS_BUSY: return "BB";
+  case MessageError::BUS_IS_BUSY: return "BIB";
   case MessageError::START_BIT_READ_ERROR: return "SBR";
   case MessageError::START_BIT_WRITE_ERROR: return "SBW";
   case MessageError::BROADCAST_BIT_READ_ERROR: return "BBR";

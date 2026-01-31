@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cstdint>
-#include <driver/gptimer.h>
 
 /**
  * @namespace iebus
@@ -17,30 +16,23 @@ namespace iebus {
  */
 class Timer {
 public:
-  using Time = std::uint64_t;
-
-private:
-  using TimerHandle = gptimer_handle_t;
-
-public:
-  Timer() noexcept;
-  ~Timer() noexcept;
+  using Time = std::int64_t;
 
 public:
   /**
    * Get current time
    * @return Time
    */
-  [[nodiscard]] auto getTimeUS() const noexcept -> Time;
+  [[nodiscard]] auto getTime() const noexcept -> Time;
 
 public:
   /**
    * Reset timer
    */
-  auto reset() const noexcept -> void;
+  auto reset() noexcept -> void;
 
 private:
-  TimerHandle m_timerHandle = nullptr;
+  Time m_startTime = 0;
 };
 
 } // namespace iebus
