@@ -47,11 +47,10 @@ public:
 
 private:
   [[nodiscard]] auto handleCommand10(Message const& message) noexcept -> MessageList;
-  [[nodiscard]] auto handleCommand20(Message const& message) noexcept -> MessageList;
-  [[nodiscard]] auto handleCommand40(Message const& message) noexcept -> MessageList;
-  [[nodiscard]] auto handleCommand60(Message const& message) noexcept -> MessageList;
-  [[nodiscard]] auto handleCommand70(Message const& message) noexcept -> MessageList;
-  [[nodiscard]] auto handleCommandD0(Message const& message) noexcept -> MessageList;
+
+private:
+  auto createCommandRestart(Message const& message) noexcept -> MessageList;
+  auto createCommandConfiguration(Message const& message) noexcept -> MessageList ;
 
 private:
   [[nodiscard]] auto checkMessageForMe(Message const& message) const -> bool;
@@ -65,6 +64,7 @@ private:
 
 private:
   bool m_isStarted = false;
+  bool m_isConfigured = false;
 };
 
 } // namespace iebus

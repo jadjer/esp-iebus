@@ -138,7 +138,8 @@ auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optAc
   if ((*optParityBit) != parity) isParityValid = false;
 
   if (optAck) {
-    if ((*optAck) and isAddressMatched) {
+    auto const forDevice = (*optAck);
+    if (forDevice and isAddressMatched) {
       if (not writeAck(isParityValid ? AckType::ACK : AckType::NAK)) return std::nullopt;
     } else {
       if (not readBit()) return std::nullopt;
@@ -206,7 +207,8 @@ auto IRAM_ATTR Driver::writeField(Data const data, Size const numBits, Driver::O
   if (not writeBit(parity)) return false;
 
   if (optAck) {
-    if (*optAck) {
+    auto const forDevice = (*optAck);
+    if (forDevice) {
       if (readAck() == AckType::NAK) return false;
     } else {
       if (not writeBit(static_cast<Bit>(AckType::NAK))) return false;

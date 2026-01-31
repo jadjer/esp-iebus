@@ -35,32 +35,30 @@ auto Processor::processMessage(Message const& message) noexcept -> Processor::Me
   if (message.length < 1) return {};
 
   auto const command = static_cast<Command>(message.data[0]);
-  if (command == Command::COMMAND_10) {
-    m_isStarted = true;
-    return handleCommand10(message);
-  }
+  if (command == Command::COMMAND_10) return handleCommand10(message);
 
-  if (not m_isStarted) return {createBroadcastCommand(Command::COMMAND_12, 0, {})};
+  if (not m_isStarted) return createCommandRestart(message);
+  if (not m_isConfigured) return createCommandConfiguration(message);
 
-  switch (command) {
-  case Command::COMMAND_20: return handleCommand20(message);
-  case Command::COMMAND_40: return handleCommand40(message);
-  case Command::COMMAND_60: return handleCommand60(message);
-  case Command::COMMAND_70: return handleCommand70(message);
-  case Command::COMMAND_D0: return handleCommandD0(message);
-  default: return {};
-  }
+  return {};
 }
 
 auto Processor::handleCommand10(Message const& message) noexcept -> Processor::MessageList {
   if (message.length < 2) return {};
 
-  return {
-      createCommand(message.master, Command::COMMAND_11, 5, {message.data[1], 0x01, 0x02, 0x85, 0x93}),
-  };
+  m_isStarted    = true;
+  m_isConfigured = false;
+
+  return {createCommand(message.master, Command::COMMAND_11, 5, {message.data[1], 0x01, 0x02, 0x85, 0x93})};
 }
 
-auto Processor::handleCommand20(Message const& message) noexcept -> Processor::MessageList {
+auto Processor::createCommandRestart(Message const& message) noexcept -> Processor::MessageList {
+  return {createBroadcastCommand(Command::COMMAND_12, 0, {})};
+}
+
+auto Processor::createCommandConfiguration(const Message& message) noexcept -> Processor::MessageList {
+  m_isConfigured = true;
+
   return {
       createCommand(message.master, Command::COMMAND_40, 3, {0xC0, 0x20, 0x02}),
       createCommand(message.master, Command::COMMAND_40, 2, {0x02, 0x10}),
@@ -78,22 +76,6 @@ auto Processor::handleCommand20(Message const& message) noexcept -> Processor::M
       createCommand(message.master, Command::COMMAND_13, 1, {0xFF}),
       createCommand(message.master, Command::COMMAND_D0, 3, {0x31, 0x0B, 0x00}),
   };
-}
-
-auto Processor::handleCommand40(Message const& message) noexcept -> Processor::MessageList {
-  return {};
-}
-
-auto Processor::handleCommand60(Message const& message) noexcept -> Processor::MessageList {
-  return {};
-}
-
-auto Processor::handleCommand70(Message const& message) noexcept -> Processor::MessageList {
-  return {};
-}
-
-auto Processor::handleCommandD0(Message const& message) noexcept -> Processor::MessageList {
-  return {};
 }
 
 auto Processor::checkMessageForMe(Message const& message) const -> bool {
@@ -126,8 +108,7 @@ auto Processor::createCommand(Address const target, Command const command, Size 
 }
 
 auto Processor::createBroadcastCommand(Command const command, Size const length, Bytes const payload) const noexcept -> Message {
-  auto message = createCommand(BROADCAST_ADDRESS, command, length, payload);
-
+  auto message      = createCommand(BROADCAST_ADDRESS, command, length, payload);
   message.broadcast = BroadcastType::BROADCAST;
 
   return message;
