@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <iebus/Message.hpp>
+#include <iebus/types.hpp>
 
 /**
  * @namespace iebus::common

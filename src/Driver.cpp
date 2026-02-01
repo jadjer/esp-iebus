@@ -109,13 +109,11 @@ auto IRAM_ATTR Driver::readBit() noexcept -> Driver::OptBit {
   return (((*optPulseWidth) < DATA_BIT_NEUTRAL_US) ? 1 : 0);
 }
 
-auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optAck, Driver::OptAddress const optAddress) noexcept -> Driver::OptData {
-  Address const address = optAddress.value_or(0);
-
+auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optAck, Driver::AddressList const addressList) noexcept -> Driver::OptData {
   Bit parity            = 0;
   Data field            = 0;
   bool isParityValid    = true;
-  bool isAddressMatched = true;
+  bool isAddressMatched = addressList.empty();
 
   for (Size i = 0; i < numBits; ++i) {
     auto const optBit = readBit();
@@ -123,19 +121,19 @@ auto IRAM_ATTR Driver::readField(Size const numBits, Driver::OptBool const optAc
 
     auto const bit = (*optBit);
 
-    parity ^= bit;
     field = ((field << 1) | bit);
-
-    if (optAddress and isAddressMatched) {
-      auto const addressBitPosition = (numBits - i - 1);
-      auto const addressBit         = static_cast<Bit>((address >> addressBitPosition) & 1);
-      if (addressBit != bit) isAddressMatched = false;
-    }
+    parity ^= bit;
   }
 
-  auto const optParityBit = readBit();
-  if (not optParityBit) return std::nullopt;
-  if ((*optParityBit) != parity) isParityValid = false;
+  {
+    auto const optParityBit = readBit();
+    if (not optParityBit) return std::nullopt;
+    if ((*optParityBit) != parity) isParityValid = false;
+  }
+
+  for (auto const address : addressList) {
+    if (address == field) isAddressMatched = true;
+  }
 
   if (optAck) {
     auto const forDevice = (*optAck);

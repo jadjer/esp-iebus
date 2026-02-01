@@ -8,6 +8,7 @@ set(SOURCES
         src/common.cpp
 
         src/Timer.cpp
+        src/Device.cpp
         src/Driver.cpp
         src/Controller.cpp
 )

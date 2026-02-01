@@ -18,9 +18,10 @@
 
 #pragma once
 
-#include <iebus/Message.hpp>
 #include <iebus/Timer.hpp>
+#include <iebus/types.hpp>
 #include <optional>
+#include <span>
 
 /**
  * @namespace iebus
@@ -33,11 +34,11 @@ namespace iebus {
  */
 class Driver {
 public:
-  using OptBit     = std::optional<Bit>;
-  using OptBool    = std::optional<bool>;
-  using OptData    = std::optional<Data>;
-  using OptTime    = std::optional<Timer::Time>;
-  using OptAddress = std::optional<Address>;
+  using OptBit      = std::optional<Bit>;
+  using OptBool     = std::optional<bool>;
+  using OptData     = std::optional<Data>;
+  using OptTime     = std::optional<Timer::Time>;
+  using AddressList = std::span<Address const>;
 
 public:
   Driver(Pin rx, Pin tx, Pin enable) noexcept;
@@ -92,7 +93,7 @@ public:
    * @param numBits data size
    * @return Data bits
    */
-  [[nodiscard]] auto readField(Size numBits, OptBool optAck = std::nullopt, OptAddress optAddress = std::nullopt) noexcept -> OptData;
+  [[nodiscard]] auto readField(Size numBits, OptBool optAck = std::nullopt, AddressList addressList = {}) noexcept -> OptData;
   /**
    * Read ack from IEBUs
    * @return ACK type

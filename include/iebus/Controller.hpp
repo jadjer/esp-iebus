@@ -19,8 +19,10 @@
 #pragma once
 
 #include <expected>
+#include <iebus/Device.hpp>
 #include <iebus/Driver.hpp>
-#include <iebus/Message.hpp>
+#include <iebus/types.hpp>
+#include <vector>
 
 /**
  * @namespace iebus
@@ -33,7 +35,8 @@ namespace iebus {
  */
 class Controller {
 public:
-  using NoneOrError = std::expected<void, MessageError>;
+  using Addresses      = std::vector<Address>;
+  using NoneOrError    = std::expected<void, MessageError>;
   using MessageOrError = std::expected<Message, MessageError>;
 
 public:
@@ -42,7 +45,14 @@ public:
    * @param driver Driver impl
    * @param address Device address
    */
-  Controller(Driver& driver, Address address) noexcept;
+  Controller(Driver& driver) noexcept;
+
+public:
+  /**
+   * Register physical device in controller
+   * @param device Device
+   */
+  auto registerDevice(Device const& device) -> void;
 
 public:
   /**
@@ -58,10 +68,10 @@ public:
   [[nodiscard]] auto writeMessage(Message const& message) noexcept -> NoneOrError;
 
 private:
-  Address const m_address;
+  Driver& m_driver;
 
 private:
-  Driver& m_driver;
+  Addresses m_addresses = {};
 };
 
 } // namespace iebus

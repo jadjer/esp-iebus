@@ -18,7 +18,7 @@
 
 #include "iebus/Controller.hpp"
 
-#include <esp_attr.h>
+#include <algorithm>
 
 namespace iebus {
 
@@ -31,10 +31,14 @@ Size constexpr DATA_BITS_SIZE    = 8;
 
 } // namespace
 
-Controller::Controller(Driver& driver, Address const address) noexcept : m_address(address), m_driver(driver) {
+Controller::Controller(Driver& driver) noexcept : m_driver(driver) {
 }
 
-auto IRAM_ATTR Controller::readMessage() noexcept -> Controller::MessageOrError {
+auto Controller::registerDevice(Device const& device) -> void {
+  m_addresses.push_back(device.getAddress());
+}
+
+auto Controller::readMessage() noexcept -> Controller::MessageOrError {
   Message message = {};
 
   if (not m_driver.isEnabled()) return std::unexpected(MessageError::DRIVER_DISABLED);
@@ -50,11 +54,11 @@ auto IRAM_ATTR Controller::readMessage() noexcept -> Controller::MessageOrError 
 
   auto const forDevice = (message.broadcast == BroadcastType::DEVICE);
 
-  auto const optSlaveData = m_driver.readField(ADDRESS_BITS_SIZE, forDevice, m_address);
+  auto const optSlaveData = m_driver.readField(ADDRESS_BITS_SIZE, forDevice, m_addresses);
   if (not optSlaveData.has_value()) return std::unexpected(MessageError::SLAVE_FIELD_READ_ERROR);
   message.slave = static_cast<Address>(*optSlaveData);
 
-  auto const isTarget = (forDevice and (message.slave == m_address));
+  auto const isTarget = (forDevice and std::ranges::contains(m_addresses, message.slave));
 
   auto const optControlData = m_driver.readField(CONTROL_BITS_SIZE, isTarget);
   if (not optControlData) return std::unexpected(MessageError::CONTROL_FIELD_READ_ERROR);
@@ -74,7 +78,7 @@ auto IRAM_ATTR Controller::readMessage() noexcept -> Controller::MessageOrError 
   return message;
 }
 
-auto IRAM_ATTR Controller::writeMessage(Message const& message) noexcept -> Controller::NoneOrError {
+auto Controller::writeMessage(Message const& message) noexcept -> Controller::NoneOrError {
   auto const forDevice = (message.broadcast == BroadcastType::DEVICE);
 
   if (not m_driver.isEnabled()) return std::unexpected(MessageError::DRIVER_DISABLED);
