@@ -9,7 +9,6 @@ set(SOURCES
 
         src/Timer.cpp
         src/Driver.cpp
-        src/Processor.cpp
         src/Controller.cpp
 )
 
