@@ -25,8 +25,10 @@ namespace iebus {
 
 namespace {
 
-Timer::Time constexpr START_BIT_TOTAL_US = 193;
+Timer::Time constexpr START_BIT_MAX_US   = 200;
 Timer::Time constexpr START_BIT_HIGH_US  = 171;
+Timer::Time constexpr START_BIT_WAIT_US  = 7;
+Timer::Time constexpr START_BIT_TOTAL_US = 193;
 
 Timer::Time constexpr DATA_BIT_TOTAL_US   = 40;
 Timer::Time constexpr DATA_BIT_1_HIGH_US  = 20;
@@ -34,7 +36,7 @@ Timer::Time constexpr DATA_BIT_0_HIGH_US  = 33;
 Timer::Time constexpr DATA_BIT_NEUTRAL_US = ((DATA_BIT_0_HIGH_US + DATA_BIT_1_HIGH_US + 1) / 2);
 
 Timer::Time constexpr PROCESS_COMPENSATION      = 3;
-Timer::Time constexpr MESSAGE_SAFE_INTERVALE_US = (DATA_BIT_TOTAL_US * 10);
+Timer::Time constexpr MESSAGE_SAFE_INTERVALE_US = 500;
 
 } // namespace
 
@@ -96,7 +98,7 @@ auto IRAM_ATTR Driver::disable() const noexcept -> void {
 }
 
 auto IRAM_ATTR Driver::readStartBit() noexcept -> bool {
-  auto const optPulseWidth = readPulseWidth(DATA_BIT_TOTAL_US, START_BIT_TOTAL_US);
+  auto const optPulseWidth = readPulseWidth(START_BIT_WAIT_US, START_BIT_MAX_US);
   if (not optPulseWidth) return false;
 
   return ((*optPulseWidth) > DATA_BIT_TOTAL_US);

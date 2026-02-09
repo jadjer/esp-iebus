@@ -20,12 +20,6 @@
 
 namespace iebus {
 
-namespace {
-
-Address constexpr BROADCAST_ADDRESS = 0xFFF;
-
-}
-
 Device::Device(Address const address) noexcept : m_address(address) {
 }
 
@@ -34,40 +28,10 @@ auto Device::getAddress() const noexcept -> Address {
 }
 
 auto Device::checkMessageForMe(Message const& message) const -> bool {
-  auto const isBroadcast   = (message.broadcast == BroadcastType::BROADCAST);
-  auto const targetAddress = message.slave;
-
-  if (isBroadcast) return true;
-  if (targetAddress == m_address) return true;
+  if (message.broadcast == BroadcastType::BROADCAST) return true;
+  if (message.slave == m_address) return true;
 
   return false;
-}
-
-auto Device::createCommand(Address const target, Command const command, Size const length, Bytes const payload) const noexcept -> Message {
-  Message message = {
-      .master    = m_address,
-      .slave     = target,
-      .broadcast = BroadcastType::DEVICE,
-      .control   = ControlType::WRITE_COMMAND,
-      .length    = (length + 1),
-      .data      = {},
-  };
-
-  message.data[0] = static_cast<Bit>(command);
-
-  for (Size i = 0; ((i < length) and (i < (MAX_MESSAGE_SIZE - 1))); ++i) {
-    message.data[i + 1] = payload[i];
-  }
-
-  return message;
-}
-
-auto Device::createBroadcastCommand(Command const command, Size const length, Bytes const payload) const noexcept -> Message {
-  auto message = createCommand(BROADCAST_ADDRESS, command, length, payload);
-
-  message.broadcast = BroadcastType::BROADCAST;
-
-  return message;
 }
 
 } // namespace iebus

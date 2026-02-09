@@ -26,18 +26,6 @@
  */
 namespace iebus {
 
-enum class Command : Byte {
-  COMMAND_10 = 0x10,
-  COMMAND_11 = 0x11,
-  COMMAND_12 = 0x12,
-  COMMAND_13 = 0x13,
-  COMMAND_20 = 0x20,
-  COMMAND_40 = 0x40,
-  COMMAND_60 = 0x60,
-  COMMAND_70 = 0x70,
-  COMMAND_D0 = 0xD0,
-};
-
 /**
  * @class Device
  * @brief Physical device abstract class
@@ -64,6 +52,7 @@ public:
    * @return List of message for response tyo IEBus
    */
   [[nodiscard]] virtual auto processMessage(Message const& message) -> MessageList = 0;
+  [[nodiscard]] virtual auto update() -> MessageList = 0;
 
 protected:
   /**
@@ -72,25 +61,6 @@ protected:
    * @return Bool
    */
   [[nodiscard]] auto checkMessageForMe(Message const& message) const -> bool;
-
-protected:
-  /**
-   * Create new message for response
-   * @param target Target device's address
-   * @param command Command (data[0])
-   * @param length Payload length (length + 1 command bit)
-   * @param payload Payload data
-   * @return Message
-   */
-  [[nodiscard]] auto createCommand(Address target, Command command, Size length, Bytes payload) const noexcept -> Message;
-  /**
-   * Create new broadcast message for response
-   * @param command Command (data[0])
-   * @param length Payload length (length + 1 command bit)
-   * @param payload Payload data
-   * @return Message
-   */
-  [[nodiscard]] auto createBroadcastCommand(Command command, Size length, Bytes payload) const noexcept -> Message;
 
 protected:
   Address const m_address;
